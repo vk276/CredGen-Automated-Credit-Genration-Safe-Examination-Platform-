@@ -1,0 +1,23 @@
+services:
+  # Python Backend API Service
+  - type: web
+    name: credgen-backend
+    env: python
+    plan: free
+    buildCommand: "echo 'Setting up Python runtime'"
+    startCommand: "python server.py"
+    envVars:
+      - key: PORT
+        value: 5000
+    healthCheckPath: /api/health
+
+  # Static Web Frontend Service
+  - type: web
+    name: credgen-frontend
+    env: static
+    plan: free
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

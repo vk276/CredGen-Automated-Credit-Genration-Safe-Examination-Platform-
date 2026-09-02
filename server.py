@@ -749,6 +749,7 @@ def main():
     print("=" * 70)
     
     server_address = ('', PORT)
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(server_address, CredGenApiServer) as httpd:
         try:
             httpd.serve_forever()
