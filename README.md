@@ -162,40 +162,6 @@ python -m http.server 5173
 
 ## Instructions to Push to GitHub
 
-To push this complete project repository to your GitHub account:
-
-### Step 1: Initialize Git in the Project Directory
-```bash
-git init
-```
-
-### Step 2: Add All Project Files
-```bash
-git add .
-```
-
-### Step 3: Make Initial Commit
-```bash
-git commit -m "feat: Initial commit of CredGen Academic Platform with SQLite Backend, Marksheet Studio & 2FA"
-```
-
-### Step 4: Rename Default Branch to `main`
-```bash
-git branch -M main
-```
-
-### Step 5: Link Your Remote GitHub Repository
-*(Replace `<your-username>` and `<your-repo-name>` with your GitHub username and repository name)*
-```bash
-git remote add origin https://github.com/<your-username>/<your-repo-name>.git
-```
-
-### Step 6: Push Source Code to GitHub
-```bash
-git push -u origin main
-```
-
----
 
 ## UGC CBCS 10-Point Conversion Matrix
 
