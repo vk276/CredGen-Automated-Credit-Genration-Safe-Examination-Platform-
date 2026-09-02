@@ -1,0 +1,7 @@
+# CredGen Backend Dependencies
+# The backend server (server.py) is architected using Python 3 standard library
+# modules (sqlite3, http.server, socketserver, urllib, json, hashlib, datetime).
+# Zero external pip packages are mandatory to run the REST API and SQLite engine.
+
+# Optional development & testing utilities:
+# requests>=2.31.0
