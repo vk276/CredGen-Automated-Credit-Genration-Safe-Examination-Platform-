@@ -793,6 +793,14 @@
       }
     ];
 
+    const UNIVERSITY_CURRICULUM_COURSES = [
+      { code: 'CS-302', title: 'Database Management Systems', credits: 4, maxMarks: 100, examCode: 'CS-302' },
+      { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, maxMarks: 100, examCode: 'CS-304' },
+      { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, maxMarks: 100, examCode: 'CS-306' },
+      { code: 'CS-308', title: 'Software Engineering & Cloud Architectures', credits: 3, maxMarks: 100, examCode: 'CS-308' },
+      { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, maxMarks: 100, examCode: 'CS-310' }
+    ];
+
     const INITIAL_MARKSHEET_RECORDS = [
       {
         id: 'rec_rahul_sem6',
@@ -806,125 +814,37 @@
         publishedBy: null,
         publishedAt: null,
         courses: [
-          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 26, midTerm: 18, endTerm: 44.5, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 24, midTerm: 17, endTerm: 41, maxMarks: 100 },
-          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 28, midTerm: 19, endTerm: 43, maxMarks: 100 },
-          { code: 'CS-308', title: 'Software Engineering & Cloud Architectures', credits: 3, internal: 27, midTerm: 18, endTerm: 42, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 29, midTerm: 19, endTerm: 46, maxMarks: 100 }
+          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 26, midTerm: 18, endTerm: 44.5, maxMarks: 100 }
         ]
       },
       {
-        id: 'rec_aarav_sem6',
-        studentId: 'usr_student_aarav',
-        studentName: 'Aarav Sharma',
-        rollNo: '11242602',
+        id: 'rec_vivek_sem6',
+        studentId: 'usr_admin_vivek',
+        studentName: 'Vivek Kumar',
+        rollNo: '11242634',
         program: 'B.Tech in Computer Science & Engineering',
         semester: 'Semester VI (Session 2026–2027)',
         institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'DRAFT',
-        publishedBy: null,
-        publishedAt: null,
+        publishStatus: 'PUBLISHED',
+        publishedBy: 'Dr. Vinsha Sumra',
+        publishedAt: '2026-09-01 11:30 AM',
         courses: [
-          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 25, midTerm: 17, endTerm: 42, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 23, midTerm: 16, endTerm: 39, maxMarks: 100 },
-          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 27, midTerm: 18, endTerm: 41, maxMarks: 100 },
-          { code: 'CS-308', title: 'Software Engineering & Cloud Architectures', credits: 3, internal: 26, midTerm: 17, endTerm: 40, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 28, midTerm: 18, endTerm: 44, maxMarks: 100 }
+          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 28, midTerm: 19, endTerm: 43.5, maxMarks: 100 }
         ]
       },
       {
-        id: 'rec_priya_sem6',
-        studentId: 'usr_student_priya',
-        studentName: 'Priya Patel',
-        rollNo: '11242603',
-        program: 'B.Tech in CSE (Artificial Intelligence & Machine Learning)',
-        semester: 'Semester VI (Session 2026–2027)',
-        institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'DRAFT',
-        publishedBy: null,
-        publishedAt: null,
-        courses: [
-          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 29, midTerm: 20, endTerm: 48, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 28, midTerm: 19, endTerm: 46, maxMarks: 100 },
-          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 29, midTerm: 19, endTerm: 47, maxMarks: 100 },
-          { code: 'AI-312', title: 'Deep Learning & Neural Architectures', credits: 3, internal: 30, midTerm: 20, endTerm: 49, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 30, midTerm: 20, endTerm: 48, maxMarks: 100 }
-        ]
-      },
-      {
-        id: 'rec_rohan_sem6',
-        studentId: 'usr_student_rohan',
-        studentName: 'Rohan Gupta',
-        rollNo: '11242604',
-        program: 'B.Tech in Information Technology',
-        semester: 'Semester VI (Session 2026–2027)',
-        institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'DRAFT',
-        publishedBy: null,
-        publishedAt: null,
-        courses: [
-          { code: 'IT-302', title: 'Enterprise Web Development', credits: 4, internal: 22, midTerm: 15, endTerm: 38, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 21, midTerm: 14, endTerm: 36, maxMarks: 100 },
-          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 24, midTerm: 16, endTerm: 39, maxMarks: 100 },
-          { code: 'IT-308', title: 'Cloud Infrastructure & DevOps', credits: 3, internal: 23, midTerm: 15, endTerm: 37, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 25, midTerm: 17, endTerm: 41, maxMarks: 100 }
-        ]
-      },
-      {
-        id: 'rec_amanpreet_sem6',
-        studentId: 'usr_student_aman',
-        studentName: 'Amanpreet Singh',
-        rollNo: '11242605',
+        id: 'rec_shashank_sem6',
+        studentId: 'usr_admin_shashank',
+        studentName: 'Banda Shashank',
+        rollNo: '11242656',
         program: 'B.Tech in Computer Science & Engineering',
         semester: 'Semester VI (Session 2026–2027)',
         institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'WITHHELD',
-        publishedBy: null,
-        publishedAt: null,
+        publishStatus: 'PUBLISHED',
+        publishedBy: 'Dr. Vinsha Sumra',
+        publishedAt: '2026-09-01 11:30 AM',
         courses: [
-          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 15, midTerm: 10, endTerm: 25, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 14, midTerm: 11, endTerm: 28, maxMarks: 100 },
-          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 16, midTerm: 12, endTerm: 30, maxMarks: 100 },
-          { code: 'CS-308', title: 'Software Engineering & Cloud Architectures', credits: 3, internal: 18, midTerm: 13, endTerm: 32, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 17, midTerm: 12, endTerm: 29, maxMarks: 100 }
-        ]
-      },
-      {
-        id: 'rec_ananya_sem6',
-        studentId: 'usr_student_ananya',
-        studentName: 'Ananya Verma',
-        rollNo: '11242606',
-        program: 'B.Tech in CSE (Data Science & Analytics)',
-        semester: 'Semester VI (Session 2026–2027)',
-        institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'DRAFT',
-        publishedBy: null,
-        publishedAt: null,
-        courses: [
-          { code: 'CS-302', title: 'Database Management Systems', credits: 4, internal: 27, midTerm: 18, endTerm: 45, maxMarks: 100 },
-          { code: 'CS-304', title: 'Design & Analysis of Algorithms', credits: 4, internal: 26, midTerm: 17, endTerm: 43, maxMarks: 100 },
-          { code: 'DS-306', title: 'Big Data Processing & Distributed Systems', credits: 3, internal: 28, midTerm: 19, endTerm: 44, maxMarks: 100 },
-          { code: 'CS-308', title: 'Software Engineering & Cloud Architectures', credits: 3, internal: 27, midTerm: 18, endTerm: 42, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 29, midTerm: 19, endTerm: 45, maxMarks: 100 }
-        ]
-      },
-      {
-        id: 'rec_sneha_sem6',
-        studentId: 'usr_student_sneha',
-        studentName: 'Sneha Reddy',
-        rollNo: '11242607',
-        program: 'B.Tech in Electronics & Communication Engineering',
-        semester: 'Semester VI (Session 2026–2027)',
-        institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        publishStatus: 'DRAFT',
-        publishedBy: null,
-        publishedAt: null,
-        courses: [
-          { code: 'EC-302', title: 'VLSI Design & Digital Circuit Systems', credits: 4, internal: 26, midTerm: 18, endTerm: 43, maxMarks: 100 },
-          { code: 'EC-304', title: 'Digital Signal Processing & Architectures', credits: 4, internal: 25, midTerm: 17, endTerm: 41, maxMarks: 100 },
-          { code: 'EC-306', title: 'Embedded Systems & IoT Microcontrollers', credits: 3, internal: 27, midTerm: 19, endTerm: 44, maxMarks: 100 },
-          { code: 'EC-308', title: 'Wireless Communication & Optical Networks', credits: 3, internal: 26, midTerm: 18, endTerm: 42, maxMarks: 100 },
-          { code: 'CS-310', title: 'Advanced Full-Stack Engineering & AI Systems', credits: 4, internal: 28, midTerm: 18, endTerm: 45, maxMarks: 100 }
+          { code: 'CS-306', title: 'Computer Networks & Cyber Security', credits: 3, internal: 27, midTerm: 18, endTerm: 42.0, maxMarks: 100 }
         ]
       }
     ];
@@ -2531,7 +2451,7 @@
       // Marksheet Records & Publishing State (Synchronized with localStorage)
       const [marksheetRecords, setMarksheetRecords] = useState(() => {
         try {
-          const saved = localStorage.getItem('credgen_marksheet_records_v2');
+          const saved = localStorage.getItem('credgen_marksheet_records_v3');
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -2542,7 +2462,7 @@
 
       React.useEffect(() => {
         try {
-          localStorage.setItem('credgen_marksheet_records_v2', JSON.stringify(marksheetRecords));
+          localStorage.setItem('credgen_marksheet_records_v3', JSON.stringify(marksheetRecords));
         } catch(e) {}
       }, [marksheetRecords]);
 
@@ -2640,38 +2560,49 @@
         }));
       };
 
-      const handleAddCourse = (recordId) => {
+      const handleEnrolCurriculumCourse = (recordId, courseCode) => {
+        const curriculumCourse = UNIVERSITY_CURRICULUM_COURSES.find(c => c.code === courseCode);
+        if (!curriculumCourse) return;
         setMarksheetRecords(prev => prev.map(rec => {
           if (rec.id === recordId) {
-            const newCode = `CS-${300 + (rec.courses.length + 1) * 2}`;
+            if (rec.courses.some(c => c.code === courseCode)) {
+              triggerToast('Already Enrolled', `Candidate is already enrolled in ${courseCode}.`);
+              return rec;
+            }
             const newCourse = {
-              code: newCode,
-              title: 'Advanced Elective Subject',
-              credits: 3,
-              internal: 25,
+              code: curriculumCourse.code,
+              title: curriculumCourse.title,
+              credits: curriculumCourse.credits,
+              internal: 26,
               midTerm: 17,
-              endTerm: 40,
-              maxMarks: 100
+              endTerm: 42,
+              maxMarks: curriculumCourse.maxMarks || 100
             };
             return { ...rec, courses: [...rec.courses, newCourse] };
           }
           return rec;
         }));
-        triggerToast('Subject Added', 'New course subject added to transcript.');
+        triggerToast('Subject Enrolled', `${curriculumCourse.code}: ${curriculumCourse.title} enrolled in student transcript.`);
+      };
+
+      const handleAddCourse = (recordId) => {
+        const rec = marksheetRecords.find(r => r.id === recordId);
+        const unenrolled = UNIVERSITY_CURRICULUM_COURSES.find(c => !rec?.courses?.some(existing => existing.code === c.code));
+        if (unenrolled) {
+          handleEnrolCurriculumCourse(recordId, unenrolled.code);
+        } else {
+          triggerToast('All Enrolled', 'Student is already enrolled in all accredited semester curriculum courses.');
+        }
       };
 
       const handleRemoveCourse = (recordId, courseCode) => {
         setMarksheetRecords(prev => prev.map(rec => {
           if (rec.id === recordId) {
-            if (rec.courses.length <= 1) {
-              triggerToast('Cannot Delete', 'A marksheet must have at least one course.');
-              return rec;
-            }
             return { ...rec, courses: rec.courses.filter(c => c.code !== courseCode) };
           }
           return rec;
         }));
-        triggerToast('Subject Removed', `Course ${courseCode} removed.`);
+        triggerToast('Subject Dropped', `Course ${courseCode} removed from student transcript.`);
       };
 
       const handleSaveEvaluation = (recordId) => {
@@ -3558,6 +3489,71 @@
             return [newSession, ...prev];
           }
         });
+
+        // Dynamic Marksheet Record Generation for Completed Exam:
+        const currentExam = exams.find(e => e.id === selectedExamForStudent) || exams[0];
+        const examCourseId = currentExam?.courseId || 'CS-302';
+        const examCourseName = currentExam?.courseName || 'Database Management Systems';
+        const examCreditWeight = currentExam?.creditWeight || 4;
+
+        let examScore = 0;
+        let totalPossible = 0;
+        const examQuestions = questionBank.filter(q => currentExam?.questionIds?.includes(q.id) || q.courseId === examCourseId);
+
+        examQuestions.forEach(q => {
+          const qMarks = q.marks || 5;
+          totalPossible += qMarks;
+          if (liveResponses[q.id] === q.correctOptionId) {
+            examScore += qMarks;
+          } else if (liveResponses[q.id] && currentExam?.negativeMarking) {
+            examScore -= (currentExam.negativeMarkValue || 0.5);
+          }
+        });
+        if (examScore < 0) examScore = 0;
+        const scoreFraction = totalPossible > 0 ? (examScore / totalPossible) : 0.85;
+        const calculatedMidTerm = Math.round(scoreFraction * 20);
+        const calculatedInternal = 26;
+        const calculatedEndTerm = Math.round(scoreFraction * 50);
+
+        const candidateId = currentUser ? currentUser.id : 'usr_student_rahul';
+        const candidateName = currentUser ? currentUser.name : 'Rahul Verma';
+        const candidateRoll = currentUser ? (currentUser.rollNo || '11242601') : '11242601';
+
+        setMarksheetRecords(prev => {
+          const existing = prev.find(r => r.studentId === candidateId || r.rollNo === candidateRoll);
+          const completedCourseItem = {
+            code: examCourseId,
+            title: examCourseName,
+            credits: examCreditWeight,
+            internal: calculatedInternal,
+            midTerm: calculatedMidTerm,
+            endTerm: calculatedEndTerm,
+            maxMarks: 100
+          };
+
+          if (existing) {
+            const hasCourse = existing.courses.some(c => c.code === examCourseId);
+            const nextCourses = hasCourse
+              ? existing.courses.map(c => c.code === examCourseId ? { ...c, midTerm: calculatedMidTerm, endTerm: calculatedEndTerm } : c)
+              : [...existing.courses, completedCourseItem];
+            return prev.map(r => r.id === existing.id ? { ...r, courses: nextCourses } : r);
+          } else {
+            const newRecord = {
+              id: `rec_${candidateId}_sem6`,
+              studentId: candidateId,
+              studentName: candidateName,
+              rollNo: candidateRoll,
+              program: 'B.Tech in Computer Science & Engineering',
+              semester: 'Semester VI (Session 2026–2027)',
+              institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
+              publishStatus: 'DRAFT',
+              publishedBy: null,
+              publishedAt: null,
+              courses: [completedCourseItem]
+            };
+            return [newRecord, ...prev];
+          }
+        });
       };
 
       // Safe Exam Browser Live Monitoring, Real MediaRecorder & Hardware Lifecycle
@@ -3817,6 +3813,16 @@
         }
       };
 
+      // Window Test Automation Bridge
+      React.useEffect(() => {
+        window.__credGenSelectUser = selectInstitutionalSession;
+        window.__credGenSetView = setCurrentView;
+        window.__credGenTogglePublish = handleTogglePublishResult;
+        window.__credGenEnrolCourse = handleEnrolCurriculumCourse;
+        window.__credGenRemoveCourse = handleRemoveCourse;
+        window.__credGenState = { currentUser, currentView, marksheetRecords };
+      }, [currentUser, currentView, marksheetRecords]);
+
       // Standard Login with Password
       const handleLogin = (e) => {
         e.preventDefault();
@@ -3959,7 +3965,7 @@
                   <div className="grid grid-cols-1 gap-2">
                     
                     {/* Administrator Vivek */}
-                    <div onClick={() => selectInstitutionalSession('usr_admin_vivek')} className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_vivek')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={users[0]} className="w-9 h-9 text-xs font-bold" />
                         <div className="text-left text-xs">
@@ -3968,10 +3974,10 @@
                         </div>
                       </div>
                       <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
-                    </div>
+                    </button>
 
                     {/* Administrator Shashank */}
-                    <div onClick={() => selectInstitutionalSession('usr_admin_shashank')} className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_shashank')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={users[1]} className="w-9 h-9 text-xs font-bold" />
                         <div className="text-left text-xs">
@@ -3980,10 +3986,10 @@
                         </div>
                       </div>
                       <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
-                    </div>
+                    </button>
 
                     {/* Faculty Dr Vinsha */}
-                    <div onClick={() => selectInstitutionalSession('usr_teacher_1')} className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500 cursor-pointer flex items-center justify-between transition-all group">
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_teacher_1')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500 cursor-pointer flex items-center justify-between transition-all group">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={users[2]} className="w-9 h-9 text-xs font-bold" />
                         <div className="text-left text-xs">
@@ -3992,10 +3998,10 @@
                         </div>
                       </div>
                       <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
-                    </div>
+                    </button>
 
                     {/* Student Rahul */}
-                    <div onClick={() => selectInstitutionalSession('usr_student_rahul')} className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500 cursor-pointer flex items-center justify-between transition-all group">
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_student_rahul')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500 cursor-pointer flex items-center justify-between transition-all group">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={users[3]} className="w-9 h-9 text-xs font-bold" />
                         <div className="text-left text-xs">
@@ -4004,7 +4010,7 @@
                         </div>
                       </div>
                       <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -7887,15 +7893,25 @@
                                 UGC CBCS 10-Point Course Evaluation Matrix
                               </span>
                               {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddCourse(selectedRecord.id)}
-                                  className="px-3 py-1.5 rounded-lg bg-brand-600/20 hover:bg-brand-600/30 text-brand-300 border border-brand-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all"
-                                >
-                                  <Icons.Plus />
-                                  <Icons.Plus />
-                        <span>Add Course Subject</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    defaultValue=""
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        handleEnrolCurriculumCourse(selectedRecord.id, e.target.value);
+                                        e.target.value = "";
+                                      }
+                                    }}
+                                    className="bg-slate-900 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 cursor-pointer shadow"
+                                  >
+                                    <option value="" disabled>+ Enrol in Curriculum Subject...</option>
+                                    {UNIVERSITY_CURRICULUM_COURSES.map(course => (
+                                      <option key={course.code} value={course.code} disabled={selectedRecord.courses.some(c => c.code === course.code)}>
+                                        {course.code}: {course.title} ({course.credits} Credits) {selectedRecord.courses.some(c => c.code === course.code) ? '— Enrolled' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               )}
                             </div>
 
@@ -7917,7 +7933,17 @@
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/80 text-xs">
-                                  {selectedRecord.courses.map(c => {
+                                  {selectedRecord.courses.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={isAdmin ? 11 : 10} className="py-8 text-center text-slate-400">
+                                        <div className="font-semibold text-slate-300">No subjects currently enrolled or completed for this candidate.</div>
+                                        <div className="text-[11px] text-slate-500 mt-1">
+                                          Use the "Enrol in Curriculum Subject" selector above to add accredited courses, or have the candidate complete their scheduled exam.
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    selectedRecord.courses.map(c => {
                                     const m = calculateCourseMetrics(c);
                                     return (
                                       <tr key={c.code} className="hover:bg-slate-900/60 transition-colors">
@@ -8045,7 +8071,7 @@
 
                                       </tr>
                                     );
-                                  })}
+                                  }))}
                                 </tbody>
                               </table>
                             </div>
@@ -8141,17 +8167,64 @@
 
                 {/* 6. OFFICIAL FORMAL MARKSHEET (STUDENT PORTAL VIEW - PUBLISH GATED) */}
                 {currentView === 'student_results' && (() => {
-                  const studentRecord = marksheetRecords.find(r => r.studentId === currentUser?.id) || marksheetRecords[0];
+                  const studentRecord = marksheetRecords.find(r => r.studentId === currentUser?.id || r.rollNo === currentUser?.rollNo);
                   const isPublished = studentRecord && studentRecord.publishStatus === 'PUBLISHED';
                   const isStudent = currentUser && currentUser.role === 'STUDENT';
+                  const hasEnrolledCourses = studentRecord && Array.isArray(studentRecord.courses) && studentRecord.courses.length > 0;
+
+                  // If candidate has no enrolled subjects or completed assessments yet:
+                  if (!studentRecord || !hasEnrolledCourses) {
+                    return (
+                      <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6 animate-in fade-in">
+                        <div className="glass-panel p-8 rounded-3xl border border-slate-800 space-y-4 shadow-2xl">
+                          <div className="w-16 h-16 rounded-2xl bg-brand-500/10 text-brand-400 border border-brand-500/20 flex items-center justify-center mx-auto text-2xl">
+                            <Icons.BookOpen />
+                          </div>
+                          
+                          <h2 className="text-xl font-extrabold text-slate-100">
+                            No Enrolled Subjects or Completed Assessments
+                          </h2>
+                          
+                          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                            Official academic marksheets strictly reflect curriculum courses you are officially registered in and examinations you have completed. No dummy or arbitrary courses are displayed.
+                          </p>
+
+                          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-left space-y-2 max-w-md mx-auto">
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Candidate Name:</span>
+                              <span className="text-slate-200 font-bold">{currentUser?.name}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Roll Number:</span>
+                              <span className="text-brand-400 font-bold">{currentUser?.rollNo || '11242601'}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Enrolled Subjects:</span>
+                              <span className="text-amber-400 font-mono font-bold">0 Completed</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <button
+                              onClick={() => { setIsExamSubmitted(false); setCurrentView('student_live_exam'); }}
+                              className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-glow-brand transition-all inline-flex items-center gap-2"
+                            >
+                              <Icons.Play />
+                              <span>Take Scheduled Assessment (CS-302: DBMS) →</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   // If viewing as student and result is NOT yet published, show evaluation audit notice!
                   if (isStudent && !isPublished) {
                     return (
                       <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6 animate-in fade-in">
                         <div className="glass-panel p-8 rounded-3xl border border-slate-800 space-y-4 shadow-2xl">
-                          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto text-3xl">
-                            🔒
+                          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto text-2xl">
+                            <Icons.Lock />
                           </div>
                           
                           <h2 className="text-xl font-extrabold text-slate-100">
@@ -8162,7 +8235,7 @@
                             Your examination submission and course assessments for <strong>{studentRecord?.semester || 'Semester VI'}</strong> are currently undergoing formal faculty evaluation and grading audit under UGC CBCS guidelines.
                           </p>
 
-                          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-left space-y-2">
+                          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-left space-y-2 max-w-md mx-auto">
                             <div className="flex items-center justify-between text-[11px] font-mono">
                               <span className="text-slate-400">Candidate Name:</span>
                               <span className="text-slate-200 font-bold">{currentUser.name}</span>
@@ -8170,6 +8243,10 @@
                             <div className="flex items-center justify-between text-[11px] font-mono">
                               <span className="text-slate-400">Roll Number:</span>
                               <span className="text-brand-400 font-bold">{currentUser.rollNo || '11242601'}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Enrolled Courses:</span>
+                              <span className="text-brand-300 font-mono font-bold">{studentRecord.courses.map(c => c.code).join(', ')}</span>
                             </div>
                             <div className="flex items-center justify-between text-[11px] font-mono">
                               <span className="text-slate-400">Publication Status:</span>

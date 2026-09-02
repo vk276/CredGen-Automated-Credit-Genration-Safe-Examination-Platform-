@@ -27,10 +27,10 @@ export const MarksheetGenerator = () => {
   // Compile all courses for this student for a complete semester marksheet view
   const studentResults = results.filter(r => r.rollNo === (result?.rollNo || currentUser?.rollNo));
 
-  // Compute SGPA
-  const totalCredits = studentResults.reduce((acc, r) => acc + (r.courseCredits || 4), 0);
-  const totalCreditPoints = studentResults.reduce((acc, r) => acc + (typeof r.creditPointsEarned === 'number' ? r.creditPointsEarned : (r.courseCredits || 4) * 9), 0);
-  const sgpa = totalCredits > 0 ? (totalCreditPoints / totalCredits).toFixed(2) : '9.10';
+  // Compute SGPA strictly for enrolled/completed courses
+  const totalCredits = studentResults.reduce((acc, r) => acc + (r.courseCredits || 0), 0);
+  const totalCreditPoints = studentResults.reduce((acc, r) => acc + (typeof r.creditPointsEarned === 'number' ? r.creditPointsEarned : (r.courseCredits || 0) * (r.gradePoint || 0)), 0);
+  const sgpa = totalCredits > 0 ? (totalCreditPoints / totalCredits).toFixed(2) : '0.00';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -135,58 +135,36 @@ export const MarksheetGenerator = () => {
             </thead>
             <tbody className="divide-y divide-slate-800 print:divide-slate-300">
               
-              {studentResults.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-800/30 print:hover:bg-transparent">
-                  <td className="py-3 px-3 font-mono font-bold text-brand-400 print:text-black">{row.courseCode}</td>
-                  <td className="py-3 px-3 font-medium text-slate-200 print:text-black">{row.courseName}</td>
-                  <td className="py-3 px-2 text-center font-semibold">{row.courseCredits}</td>
-                  <td className="py-3 px-2 text-center text-slate-400 print:text-black">{row.totalMaximumMarks}</td>
-                  <td className="py-3 px-2 text-center font-bold text-emerald-400 print:text-black">{row.rawMarksObtained}</td>
-                  <td className="py-3 px-2 text-center font-mono">{row.percentage}%</td>
-                  <td className="py-3 px-2 text-center">
-                    <span className="font-bold text-amber-400 print:text-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 print:border-none">
-                      {row.letterGrade}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 text-center font-bold">{row.gradePoint}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-brand-300 print:text-black">
-                    {row.creditPointsEarned}
+              {studentResults.length > 0 ? (
+                studentResults.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-800/30 print:hover:bg-transparent">
+                    <td className="py-3 px-3 font-mono font-bold text-brand-400 print:text-black">{row.courseCode}</td>
+                    <td className="py-3 px-3 font-medium text-slate-200 print:text-black">{row.courseName}</td>
+                    <td className="py-3 px-2 text-center font-semibold">{row.courseCredits}</td>
+                    <td className="py-3 px-2 text-center text-slate-400 print:text-black">{row.totalMaximumMarks || 100}</td>
+                    <td className="py-3 px-2 text-center font-bold text-emerald-400 print:text-black">{row.rawMarksObtained}</td>
+                    <td className="py-3 px-2 text-center font-mono">{row.percentage || ((row.rawMarksObtained / (row.totalMaximumMarks || 100)) * 100).toFixed(2)}%</td>
+                    <td className="py-3 px-2 text-center">
+                      <span className="font-bold text-amber-400 print:text-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 print:border-none">
+                        {row.letterGrade}
+                      </span>
+                    </td>
+                    <td className="py-3 px-2 text-center font-bold">{row.gradePoint}</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-brand-300 print:text-black">
+                      {row.creditPointsEarned}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" className="py-8 text-center text-slate-400 print:text-black">
+                    <div className="font-semibold text-slate-300 print:text-black">No completed assessments or enrolled subjects found.</div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      Marksheets strictly display official curriculum subjects and completed examinations.
+                    </div>
                   </td>
                 </tr>
-              ))}
-
-              {/* Sample Additional Semester Courses for complete transcript */}
-              <tr className="hover:bg-slate-800/30">
-                <td className="py-3 px-3 font-mono font-bold text-brand-400 print:text-black">CS-302</td>
-                <td className="py-3 px-3 font-medium text-slate-200 print:text-black">Database Management Systems</td>
-                <td className="py-3 px-2 text-center font-semibold">4</td>
-                <td className="py-3 px-2 text-center text-slate-400 print:text-black">100</td>
-                <td className="py-3 px-2 text-center font-bold text-emerald-400 print:text-black">88.5</td>
-                <td className="py-3 px-2 text-center font-mono">88.50%</td>
-                <td className="py-3 px-2 text-center">
-                  <span className="font-bold text-amber-400 print:text-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 print:border-none">
-                    A+
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-center font-bold">9</td>
-                <td className="py-3 px-3 text-right font-mono font-bold text-brand-300 print:text-black">36</td>
-              </tr>
-
-              <tr className="hover:bg-slate-800/30">
-                <td className="py-3 px-3 font-mono font-bold text-brand-400 print:text-black">CS-304</td>
-                <td className="py-3 px-3 font-medium text-slate-200 print:text-black">Design & Analysis of Algorithms</td>
-                <td className="py-3 px-2 text-center font-semibold">4</td>
-                <td className="py-3 px-2 text-center text-slate-400 print:text-black">100</td>
-                <td className="py-3 px-2 text-center font-bold text-emerald-400 print:text-black">92.0</td>
-                <td className="py-3 px-2 text-center font-mono">92.00%</td>
-                <td className="py-3 px-2 text-center">
-                  <span className="font-bold text-amber-400 print:text-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 print:border-none">
-                    O
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-center font-bold">10</td>
-                <td className="py-3 px-3 text-right font-mono font-bold text-brand-300 print:text-black">40</td>
-              </tr>
+              )}
 
             </tbody>
           </table>
@@ -197,18 +175,18 @@ export const MarksheetGenerator = () => {
           
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 print:text-slate-600 block">Total Registered Credits</span>
-            <span className="text-xl font-bold font-mono text-slate-100 print:text-black">11.0 Credits</span>
+            <span className="text-xl font-bold font-mono text-slate-100 print:text-black">{totalCredits.toFixed(1)} Credits</span>
           </div>
 
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 print:text-slate-600 block">Total Earned Credit Points (∑ Ci × Gi)</span>
-            <span className="text-xl font-bold font-mono text-emerald-400 print:text-black">106.0 Points</span>
+            <span className="text-xl font-bold font-mono text-emerald-400 print:text-black">{totalCreditPoints.toFixed(1)} Points</span>
           </div>
 
           <div className="sm:text-right">
             <span className="text-[10px] uppercase font-bold text-amber-400 print:text-black block">Semester GPA (SGPA)</span>
             <span className="text-2xl font-extrabold font-mono text-amber-300 print:text-black">
-              9.64 / 10.00
+              {sgpa} / 10.00
             </span>
           </div>
 

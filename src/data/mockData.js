@@ -337,5 +337,25 @@ export const INITIAL_STUDENT_RESULTS = [
     evaluationStatus: 'COMPLETED',
     verifiedHash: 'SHA256-1B9038FD2500CE5F821415DA4892BB83B0EFA987',
     publishedDate: '2026-08-25'
+  },
+  {
+    id: 'res_11242601_dbms',
+    studentId: 'usr_student_rahul',
+    studentName: 'Rahul Verma',
+    rollNo: '11242601',
+    examId: 'exam_2026_dbms_mid',
+    examTitle: 'Mid-Semester Assessment — DBMS (CS-302)',
+    courseCode: 'CS-302',
+    courseName: 'Database Management Systems',
+    courseCredits: 4,
+    rawMarksObtained: 88.5,
+    totalMaximumMarks: 100,
+    percentage: 88.5,
+    letterGrade: 'A+',
+    gradePoint: 9,
+    creditPointsEarned: 36, // 4 credits * 9 GP
+    evaluationStatus: 'COMPLETED',
+    verifiedHash: 'SHA256-4D88C22E84A10B395D3528A7A0C73EB74F8C99B9E',
+    publishedDate: '2026-09-01'
   }
 ];

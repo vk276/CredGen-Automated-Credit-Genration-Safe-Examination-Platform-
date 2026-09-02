@@ -274,24 +274,67 @@ def init_database():
 
     cur.execute("SELECT COUNT(*) as count FROM marksheets")
     if cur.fetchone()["count"] == 0:
-        default_courses = [
-            {"code": "CS-302", "title": "Database Management Systems", "credits": 4, "internal": 26, "midTerm": 18, "endTerm": 44.5, "maxMarks": 100},
-            {"code": "CS-304", "title": "Design & Analysis of Algorithms", "credits": 4, "internal": 24, "midTerm": 17, "endTerm": 41.0, "maxMarks": 100},
-            {"code": "CS-306", "title": "Computer Networks & Cyber Security", "credits": 3, "internal": 28, "midTerm": 19, "endTerm": 43.0, "maxMarks": 100},
-            {"code": "CS-308", "title": "Software Engineering & Cloud Architecture", "credits": 3, "internal": 27, "midTerm": 18, "endTerm": 42.0, "maxMarks": 100}
+        initial_records = [
+            {
+                "id": "rec_rahul_sem6",
+                "student_id": "usr_student_rahul",
+                "student_name": "Rahul Verma",
+                "roll_no": "11242601",
+                "program": "B.Tech in Computer Science & Engineering",
+                "semester": "Semester VI (Session 2026\u20132027)",
+                "batch": "2023\u20132027",
+                "publish_status": "DRAFT",
+                "published_by": None,
+                "published_at": None,
+                "courses": [
+                    {"code": "CS-302", "title": "Database Management Systems", "credits": 4, "internal": 26, "midTerm": 18, "endTerm": 44.5, "maxMarks": 100}
+                ]
+            },
+            {
+                "id": "rec_vivek_sem6",
+                "student_id": "usr_admin_vivek",
+                "student_name": "Vivek Kumar",
+                "roll_no": "11242634",
+                "program": "B.Tech in Computer Science & Engineering",
+                "semester": "Semester VI (Session 2026\u20132027)",
+                "batch": "2023\u20132027",
+                "publish_status": "PUBLISHED",
+                "published_by": "Dr. Vinsha Sumra",
+                "published_at": "2026-09-01 11:30 AM",
+                "courses": [
+                    {"code": "CS-306", "title": "Computer Networks & Cyber Security", "credits": 3, "internal": 28, "midTerm": 19, "endTerm": 43.5, "maxMarks": 100}
+                ]
+            },
+            {
+                "id": "rec_shashank_sem6",
+                "student_id": "usr_admin_shashank",
+                "student_name": "Banda Shashank",
+                "roll_no": "11242656",
+                "program": "B.Tech in Computer Science & Engineering",
+                "semester": "Semester VI (Session 2026\u20132027)",
+                "batch": "2023\u20132027",
+                "publish_status": "PUBLISHED",
+                "published_by": "Dr. Vinsha Sumra",
+                "published_at": "2026-09-01 11:30 AM",
+                "courses": [
+                    {"code": "CS-306", "title": "Computer Networks & Cyber Security", "credits": 3, "internal": 27, "midTerm": 18, "endTerm": 42.0, "maxMarks": 100}
+                ]
+            }
         ]
-        eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa(default_courses)
-        cur.execute("""
-        INSERT INTO marksheets (id, student_id, student_name, roll_no, program, semester, batch, courses_json, sgpa, total_credits, publish_status, published_by, published_at, verification_hash, qr_payload)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            'rec_rahul_sem6', 'usr_student_rahul', 'Rahul Verma', '11242601',
-            'B.Tech in Computer Science & Engineering', 'Semester VI (Session 2026\u20132027)', '2023\u20132027',
-            json.dumps(eval_courses), sgpa, tot_cred, 'DRAFT', None, None,
-            hashlib.sha256(b'usr_student_rahul_11242601_sem6').hexdigest(),
-            'CREDGEN-VERIFY-REC-RAHUL-SEM6'
-        ))
-        print("[DB-INIT] Initialized student marksheet dossier.")
+
+        for r in initial_records:
+            eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa(r["courses"])
+            v_hash = hashlib.sha256(f"{r['id']}_{r['roll_no']}_{sgpa}".encode('utf-8')).hexdigest()
+            cur.execute("""
+            INSERT INTO marksheets (id, student_id, student_name, roll_no, program, semester, batch, courses_json, sgpa, total_credits, publish_status, published_by, published_at, verification_hash, qr_payload)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r['id'], r['student_id'], r['student_name'], r['roll_no'],
+                r['program'], r['semester'], r['batch'],
+                json.dumps(eval_courses), sgpa, tot_cred, r['publish_status'], r['published_by'], r['published_at'],
+                v_hash, f"CREDGEN-VERIFY-{r['roll_no']}"
+            ))
+        print("[DB-INIT] Initialized authentic candidate marksheet dossiers.")
 
     cur.execute("SELECT COUNT(*) as count FROM proctor_sessions")
     if cur.fetchone()["count"] == 0:
@@ -331,6 +374,7 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
     def send_json(self, data, status_code=200):
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Connection', 'close')
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2).encode('utf-8'))
 
@@ -446,10 +490,21 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             return
 
         # 6. Marksheets & Transcripts
-        if path == '/api/marksheets':
+        if path == '/api/marksheets' or path.startswith('/api/marksheets/'):
+            specific_id = path.split('/')[3] if (path.startswith('/api/marksheets/') and len(path.split('/')) > 3 and path.split('/')[3] != 'publish') else None
+            roll_no = query.get('roll_no', [None])[0]
+            student_id = query.get('student_id', [None])[0]
+
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("SELECT * FROM marksheets ORDER BY roll_no ASC")
+            if specific_id:
+                cur.execute("SELECT * FROM marksheets WHERE id = ? OR student_id = ? OR roll_no = ?", (specific_id, specific_id, specific_id))
+            elif roll_no:
+                cur.execute("SELECT * FROM marksheets WHERE roll_no = ?", (roll_no,))
+            elif student_id:
+                cur.execute("SELECT * FROM marksheets WHERE student_id = ?", (student_id,))
+            else:
+                cur.execute("SELECT * FROM marksheets ORDER BY roll_no ASC")
             records = []
             for r in cur.fetchall():
                 m = dict(r)
@@ -457,7 +512,13 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 del m["courses_json"]
                 records.append(m)
             conn.close()
-            self.send_json({"success": True, "marksheets": records, "count": len(records)})
+
+            if specific_id and records:
+                self.send_json({"success": True, "marksheet": records[0]})
+            elif specific_id and not records:
+                self.send_json({"success": False, "message": "Marksheet record not found."}, 404)
+            else:
+                self.send_json({"success": True, "marksheets": records, "count": len(records)})
             return
 
         # 7. Proctoring Sessions
@@ -706,6 +767,181 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             self.send_json({"success": True, "message": "User account restored."})
+            return
+
+        # 10. Enrol Subject into Candidate Marksheet
+        if path.startswith('/api/marksheets/') and path.endswith('/courses'):
+            record_id = path.split('/')[3]
+            course = body.get('course')
+            if not course or not course.get('code'):
+                self.send_json({"success": False, "message": "Course code and title required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM marksheets WHERE id = ? OR student_id = ? OR roll_no = ?", (record_id, record_id, record_id))
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                self.send_json({"success": False, "message": "Candidate marksheet record not found."}, 404)
+                return
+            rec = dict(row)
+
+            courses = json.loads(rec.get('courses_json') or '[]')
+            if any(c.get('code') == course['code'] for c in courses):
+                conn.close()
+                self.send_json({"success": False, "message": f"Candidate is already enrolled in {course['code']}."}, 400)
+                return
+
+            courses.append(course)
+            eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa(courses)
+            cur.execute("""
+            UPDATE marksheets 
+            SET courses_json = ?, sgpa = ?, total_credits = ?
+            WHERE id = ?
+            """, (json.dumps(eval_courses), sgpa, tot_cred, rec['id']))
+            conn.commit()
+            conn.close()
+
+            print(f"[CURRICULUM-ENROL] Enrolled course {course['code']} into marksheet {rec['id']} (New SGPA: {sgpa}).")
+            self.send_json({
+                "success": True,
+                "message": f"Course {course['code']} enrolled successfully.",
+                "recordId": rec['id'],
+                "sgpa": sgpa,
+                "totalCredits": tot_cred,
+                "courses": eval_courses
+            })
+            return
+
+        # 11. Drop/Remove Subject from Candidate Marksheet
+        if path.startswith('/api/marksheets/') and path.endswith('/drop-course'):
+            record_id = path.split('/')[3]
+            course_code = body.get('code')
+            if not course_code:
+                self.send_json({"success": False, "message": "Course code required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM marksheets WHERE id = ? OR student_id = ? OR roll_no = ?", (record_id, record_id, record_id))
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                self.send_json({"success": False, "message": "Candidate marksheet record not found."}, 404)
+                return
+            rec = dict(row)
+
+            courses = json.loads(rec.get('courses_json') or '[]')
+            filtered_courses = [c for c in courses if c.get('code') != course_code]
+            eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa(filtered_courses)
+            cur.execute("""
+            UPDATE marksheets 
+            SET courses_json = ?, sgpa = ?, total_credits = ?
+            WHERE id = ?
+            """, (json.dumps(eval_courses), sgpa, tot_cred, rec['id']))
+            conn.commit()
+            conn.close()
+
+            print(f"[CURRICULUM-DROP] Dropped course {course_code} from marksheet {rec['id']}.")
+            self.send_json({
+                "success": True,
+                "message": f"Course {course_code} removed from candidate marksheet.",
+                "recordId": rec['id'],
+                "sgpa": sgpa,
+                "totalCredits": tot_cred,
+                "courses": eval_courses
+            })
+            return
+
+        # 12. Submit Exam & Directly Record Evaluation into Candidate Marksheet
+        if path == '/api/exams/submit':
+            student_id = body.get('studentId', 'usr_student_rahul')
+            student_name = body.get('studentName', 'Rahul Verma')
+            roll_no = body.get('rollNo', '11242601')
+            exam_id = body.get('examId', 'exam_2026_dbms_mid')
+            responses = body.get('responses', {})
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM exams WHERE id = ?", (exam_id,))
+            exam = cur.fetchone()
+            course_code = exam['course_id'] if exam else 'CS-302'
+            course_name = exam['course_name'] if exam else 'Database Management Systems'
+            credit_weight = float(exam['credit_weight']) if exam else 4.0
+
+            # Calculate score against questions in course
+            cur.execute("SELECT id, marks, correct_option_id FROM questions WHERE course_id = ?", (course_code,))
+            questions = cur.fetchall()
+            scored = 0.0
+            total_marks = 0.0
+            for q in questions:
+                total_marks += float(q['marks'])
+                if responses.get(q['id']) == q['correct_option_id']:
+                    scored += float(q['marks'])
+                elif responses.get(q['id']) and exam and exam['negative_marking']:
+                    scored -= float(exam['negative_mark_value'])
+
+            if scored < 0: scored = 0.0
+            ratio = (scored / total_marks) if total_marks > 0 else 0.85
+            mid_term = round(ratio * 20.0, 1)
+            internal = 26.0
+            end_term = round(ratio * 50.0, 1)
+
+            course_entry = {
+                "code": course_code,
+                "title": course_name,
+                "credits": credit_weight,
+                "internal": internal,
+                "midTerm": mid_term,
+                "endTerm": end_term,
+                "maxMarks": 100
+            }
+
+            cur.execute("SELECT * FROM marksheets WHERE student_id = ? OR roll_no = ?", (student_id, roll_no))
+            row = cur.fetchone()
+
+            if row:
+                existing_rec = dict(row)
+                curr_courses = json.loads(existing_rec.get('courses_json') or '[]')
+                if any(c.get('code') == course_code for c in curr_courses):
+                    updated = [course_entry if c.get('code') == course_code else c for c in curr_courses]
+                else:
+                    updated = curr_courses + [course_entry]
+                eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa(updated)
+                cur.execute("""
+                UPDATE marksheets 
+                SET courses_json = ?, sgpa = ?, total_credits = ?
+                WHERE id = ?
+                """, (json.dumps(eval_courses), sgpa, tot_cred, existing_rec['id']))
+                rec_id = existing_rec['id']
+            else:
+                eval_courses, tot_cred, tot_cp, sgpa = compute_sgpa([course_entry])
+                rec_id = f"rec_{student_id}_sem6"
+                v_hash = hashlib.sha256(f"{rec_id}_{roll_no}_{sgpa}".encode('utf-8')).hexdigest()
+                cur.execute("""
+                INSERT INTO marksheets (id, student_id, student_name, roll_no, program, semester, batch, courses_json, sgpa, total_credits, publish_status, published_by, published_at, verification_hash, qr_payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', NULL, NULL, ?, ?)
+                """, (
+                    rec_id, student_id, student_name, roll_no,
+                    'B.Tech in Computer Science & Engineering', 'Semester VI (Session 2026\u20132027)', '2023\u20132027',
+                    json.dumps(eval_courses), sgpa, tot_cred, v_hash, f"CREDGEN-VERIFY-{roll_no}"
+                ))
+
+            conn.commit()
+            conn.close()
+
+            print(f"[EXAM-MARKSHEET] Recorded exam {course_code} directly into marksheet {rec_id} (SGPA: {sgpa}).")
+            self.send_json({
+                "success": True,
+                "message": f"Assessment for {course_code} recorded directly to candidate marksheet.",
+                "recordId": rec_id,
+                "score": scored,
+                "totalPossible": total_marks,
+                "sgpa": sgpa,
+                "totalCredits": tot_cred,
+                "courses": eval_courses
+            })
             return
 
         self.send_json({"error": "Endpoint not found", "path": path}, 404)
