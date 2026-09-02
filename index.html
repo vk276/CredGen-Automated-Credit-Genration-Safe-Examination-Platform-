@@ -16,7 +16,7 @@
         banner.style = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#0f172a;color:#f87171;padding:24px;z-index:999999;font-family:monospace;font-size:14px;white-space:pre-wrap;overflow:auto;border:4px solid #ef4444;';
         document.body ? document.body.appendChild(banner) : document.documentElement.appendChild(banner);
       }
-      banner.innerHTML = '<h2 style="color:#ef4444;font-size:20px;font-weight:bold;margin-bottom:12px;">⚠️ CredGen Runtime Trap:</h2>' +
+      banner.innerHTML = '<h2 style="color:#ef4444;font-size:20px;font-weight:bold;margin-bottom:12px;">[ALERT] CredGen Runtime Trap:</h2>' +
         '<strong>Message:</strong> ' + (e.message || e.error || 'Unknown script error') + '<br>' +
         '<strong>Source:</strong> ' + (e.filename || 'inline script') + ' <strong>Line:</strong> ' + e.lineno + ':' + e.colno + '<br><br>' +
         '<strong>Stack / Details:</strong><br><pre style="background:#1e293b;padding:12px;border-radius:8px;color:#cbd5e1;">' + (e.error ? (e.error.stack || e.error.toString()) : (e.message || 'No stack')) + '</pre>';
@@ -37,7 +37,7 @@
               banner.style = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#0f172a;color:#f87171;padding:24px;z-index:999999;font-family:monospace;font-size:14px;white-space:pre-wrap;overflow:auto;border:4px solid #ef4444;';
               document.body ? document.body.appendChild(banner) : document.documentElement.appendChild(banner);
             }
-            banner.innerHTML = '<h2 style="color:#ef4444;font-size:20px;font-weight:bold;margin-bottom:12px;">⚠️ Babel Exact Compilation Error:</h2>' +
+            banner.innerHTML = '<h2 style="color:#ef4444;font-size:20px;font-weight:bold;margin-bottom:12px;">[ALERT] Babel Exact Compilation Error:</h2>' +
               '<pre style="background:#1e293b;padding:16px;color:#fca5a5;white-space:pre-wrap;font-size:13px;border-radius:8px;">' + (babelErr.message || babelErr.toString()) + '\n\n' + (babelErr.codeFrame || '') + '</pre>';
           }
         });
@@ -52,6 +52,11 @@
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', '-apple-system', 'sans-serif'],
+            display: ['Outfit', '"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
           colors: {
             brand: {
               50: '#f5f7ff',
@@ -67,6 +72,7 @@
               950: '#1e1b4b',
             },
             obsidian: {
+              950: '#040711',
               900: '#070a13',
               850: '#0d1322',
               800: '#121a2d',
@@ -96,16 +102,26 @@
             'glow-purple': '0 0 35px -5px rgba(168, 85, 247, 0.45)',
             'glow-cyan': '0 0 35px -5px rgba(6, 182, 212, 0.45)',
             'glow-coral': '0 0 35px -5px rgba(244, 63, 94, 0.45)',
+          },
+          animation: {
+            'ambient-float': 'ambientMeshFloat 20s ease-in-out infinite alternate',
+            'border-glow': 'borderGlowPulse 4s ease-in-out infinite',
+            'badge-shimmer': 'badgeShimmer 3.5s linear infinite',
+            'view-fade': 'viewFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'radar-sweep': 'radarSweep 3.5s linear infinite',
+            'audio-wave': 'audioWave 1.2s ease-in-out infinite alternate',
+            'qr-scan': 'qrScanLine 2.5s ease-in-out infinite',
+            'pulse-subtle': 'pulseSubtle 2.5s ease-in-out infinite',
           }
         }
       }
     }
   </script>
 
-  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <!-- Google Fonts: Outfit, Plus Jakarta Sans, Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- React, ReactDOM, Babel & Confetti -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -123,28 +139,109 @@
       overflow-x: hidden;
     }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100%;
       overflow-x: hidden;
       scroll-behavior: smooth;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      background-color: #070a13;
+      background-color: #040711;
       background-image: 
-        radial-gradient(at 15% 15%, rgba(99, 102, 241, 0.14) 0px, transparent 48%),
-        radial-gradient(at 85% 20%, rgba(168, 85, 247, 0.12) 0px, transparent 48%),
-        radial-gradient(at 50% 80%, rgba(6, 182, 212, 0.09) 0px, transparent 52%),
+        radial-gradient(at 15% 15%, rgba(99, 102, 241, 0.16) 0px, transparent 48%),
+        radial-gradient(at 85% 20%, rgba(168, 85, 247, 0.14) 0px, transparent 48%),
+        radial-gradient(at 50% 80%, rgba(6, 182, 212, 0.10) 0px, transparent 52%),
         radial-gradient(at 90% 90%, rgba(16, 185, 129, 0.08) 0px, transparent 45%);
       background-attachment: fixed;
       color: #f1f5f9;
     }
+
+    /* Keyframes for Professional Animations */
+    @keyframes ambientMeshFloat {
+      0% {
+        transform: scale(1) translate(0px, 0px);
+        opacity: 0.85;
+      }
+      50% {
+        transform: scale(1.08) translate(25px, -15px);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.95) translate(-20px, 20px);
+        opacity: 0.85;
+      }
+    }
+    @keyframes borderGlowPulse {
+      0%, 100% {
+        border-color: rgba(99, 102, 241, 0.25);
+        box-shadow: 0 0 15px -3px rgba(99, 102, 241, 0.15);
+      }
+      50% {
+        border-color: rgba(168, 85, 247, 0.5);
+        box-shadow: 0 0 25px 0px rgba(168, 85, 247, 0.3);
+      }
+    }
+    @keyframes badgeShimmer {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+    @keyframes viewFadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes radarSweep {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @keyframes qrScanLine {
+      0%, 100% {
+        top: 0%;
+        opacity: 0.3;
+      }
+      50% {
+        top: 94%;
+        opacity: 1;
+      }
+    }
+    @keyframes audioWave {
+      0% {
+        transform: scaleY(0.35);
+      }
+      100% {
+        transform: scaleY(1);
+      }
+    }
+    @keyframes pulseSubtle {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.65;
+        transform: scale(0.98);
+      }
+    }
+
     /* Custom Smooth Scrollbar Engine Everywhere */
     ::-webkit-scrollbar {
       width: 7px;
       height: 7px;
     }
     ::-webkit-scrollbar-track {
-      background: rgba(7, 10, 19, 0.95);
+      background: rgba(4, 7, 17, 0.95);
     }
     ::-webkit-scrollbar-thumb {
       background: rgba(99, 102, 241, 0.35);
@@ -155,7 +252,7 @@
     }
     * {
       scrollbar-width: thin;
-      scrollbar-color: rgba(99, 102, 241, 0.35) rgba(7, 10, 19, 0.95);
+      scrollbar-color: rgba(99, 102, 241, 0.35) rgba(4, 7, 17, 0.95);
     }
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
@@ -165,46 +262,108 @@
       background: rgba(99, 102, 241, 0.4);
       border-radius: 9999px;
     }
+
+    /* Enhanced Specular Glassmorphism & Interactive Surfaces */
     .glass-nav {
-      background: rgba(7, 10, 19, 0.82);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(99, 102, 241, 0.18);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+      background: rgba(7, 10, 19, 0.86);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.7);
     }
     .glass-panel {
-      background: rgba(13, 19, 34, 0.78);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.82) 0%, rgba(9, 14, 28, 0.9) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .glass-panel:hover {
-      border-color: rgba(99, 102, 241, 0.3);
+      border-color: rgba(99, 102, 241, 0.32);
+      box-shadow: 0 25px 60px -12px rgba(99, 102, 241, 0.14), 0 10px 25px -5px rgba(0, 0, 0, 0.6);
     }
     .glass-card {
-      background: rgba(18, 26, 45, 0.62);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      transition: all 0.2s ease;
+      background: linear-gradient(145deg, rgba(20, 29, 52, 0.62) 0%, rgba(12, 18, 36, 0.78) 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 25px -6px rgba(0, 0, 0, 0.45);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .glass-card:hover {
-      border-color: rgba(168, 85, 247, 0.3);
-      transform: translateY(-2px);
+      border-color: rgba(129, 140, 248, 0.42);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 35px -8px rgba(99, 102, 241, 0.24), 0 0 0 1px rgba(129, 140, 248, 0.2);
+    }
+    .glass-card-interactive {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card-interactive::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
     }
     .form-input {
-      background: rgba(11, 16, 29, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(8, 13, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: #f8fafc;
-      transition: all 0.18s ease-in-out;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .form-input:focus {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28), 0 0 20px -3px rgba(99, 102, 241, 0.3);
       outline: none;
     }
+    .btn-luxury {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-luxury:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+    .btn-luxury:active {
+      transform: translateY(1px) scale(0.98);
+    }
+    .btn-luxury::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%; width: 200%; height: 200%;
+      background: linear-gradient(60deg, transparent, rgba(255,255,255,0.1), transparent);
+      transform: rotate(30deg);
+      transition: all 0.6s ease;
+      opacity: 0;
+    }
+    .btn-luxury:hover::after {
+      opacity: 1;
+      transform: rotate(30deg) translate(30%, 30%);
+    }
+
+    /* Animated Live Scanline for Security QR Capsule */
+    .qr-scanner-box {
+      position: relative;
+      overflow: hidden;
+    }
+    .qr-scanner-box .scan-bar {
+      position: absolute;
+      left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, #06b6d4, #6366f1, transparent);
+      box-shadow: 0 0 10px #06b6d4;
+      animation: qrScanLine 2.5s ease-in-out infinite;
+    }
+
+    /* Metallic Foil Shimmer */
+    .gold-shimmer-badge {
+      background: linear-gradient(90deg, #b45309 0%, #fef08a 50%, #b45309 100%);
+      background-size: 200% auto;
+      animation: badgeShimmer 4s linear infinite;
+    }
+
     .hero-gradient-text {
       background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 20%, #c4b5fd 45%, #67e8f9 75%, #fde047 100%);
       -webkit-background-clip: text;
@@ -225,6 +384,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+
     @media print {
       @page {
         size: A4 portrait;
@@ -252,8 +412,15 @@
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-brand-500/20 selection:text-brand-300 flex flex-col">
-  <div id="root"></div>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-brand-500/20 selection:text-brand-300 flex flex-col relative overflow-x-hidden font-sans">
+  <!-- Dynamic Ambient Bioluminescent Aura Mesh Background -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+    <div class="absolute -top-[15%] -left-[10%] w-[55vw] h-[55vw] rounded-full bg-brand-600/10 blur-[130px] animate-ambient-float"></div>
+    <div class="absolute top-[35%] -right-[15%] w-[50vw] h-[50vw] rounded-full bg-purple-600/10 blur-[140px] animate-ambient-float" style="animation-delay: -6s;"></div>
+    <div class="absolute -bottom-[20%] left-[25%] w-[45vw] h-[45vw] rounded-full bg-cyan-600/10 blur-[120px] animate-ambient-float" style="animation-delay: -12s;"></div>
+  </div>
+
+  <div id="root" class="relative z-10 flex flex-col min-h-screen"></div>
 
   <script type="text/babel">
     const { useState } = React;
@@ -1617,7 +1784,7 @@
       const templateType = settings.templateType || 'template_naac_official';
 
       // ==========================================
-      // TEMPLATE 2: 👑 CHANCELLOR'S GOLD EXECUTIVE HONOURS TRANSCRIPT
+      // TEMPLATE 2: CHANCELLOR'S GOLD EXECUTIVE HONOURS TRANSCRIPT
       // ==========================================
       if (templateType === 'template_executive_gold' || templateType === 'chancellor_gold') {
         return (
@@ -1767,7 +1934,7 @@
       }
 
       // ==========================================
-      // TEMPLATE 3: 💎 MODERN MMEC ENGINEERING & TECH TRANSCRIPT (HARD-COPY & PRINT OPTIMIZED)
+      // TEMPLATE 3: MODERN MMEC ENGINEERING & TECH TRANSCRIPT (HARD-COPY & PRINT OPTIMIZED)
       // ==========================================
       if (templateType === 'template_modern_academic' || templateType === 'mmdu_modern') {
         return (
@@ -1775,7 +1942,7 @@
             {/* Top Bar */}
             <div className="flex items-center justify-between border-b-2 border-blue-900/20 pb-2 text-[10px] font-mono text-blue-900 font-bold">
               <span>TRANSCRIPT ID : {settings.transcriptId || `MMEC/TECH/${record.rollNo}/2026-27`}</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> 🔐 BIOMETRIC & CRYPTO SEALED</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>  BIOMETRIC & CRYPTO SEALED</span>
             </div>
 
             {/* Modern Clean Header */}
@@ -1941,7 +2108,7 @@
       }
 
       // ==========================================
-      // TEMPLATE 4: 📜 CLASSICAL TRADITIONAL UNIVERSITY DIPLOMA
+      // TEMPLATE 4: CLASSICAL TRADITIONAL UNIVERSITY DIPLOMA
       // ==========================================
       if (templateType === 'template_vintage_diploma') {
         return (
@@ -2078,7 +2245,7 @@
       }
 
       // ==========================================
-      // TEMPLATE 5: 📤 DIRECT UPLOADED FINAL MARKSHEET DISPLAY
+      // TEMPLATE 5: DIRECT UPLOADED FINAL MARKSHEET DISPLAY
       // ==========================================
       if (templateType === 'template_custom_uploaded' || templateType === 'custom_uploaded') {
         // 1. IF NO TEMPLATE IMAGE UPLOADED: Simple clean upload prompt
@@ -2086,7 +2253,7 @@
           return (
             <div className="marksheet-print-container relative rounded-2xl overflow-hidden bg-white text-slate-800 border-2 border-dashed border-slate-300 p-12 text-center space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto text-3xl">
-                📄
+                
               </div>
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-900">
@@ -2126,7 +2293,7 @@
       }
 
       // ==========================================
-      // TEMPLATE 1: 🏛️ OFFICIAL MMDU NAAC A++ MASTER TEMPLATE (DEFAULT)
+      // TEMPLATE 1: OFFICIAL MMDU NAAC A++ MASTER TEMPLATE (DEFAULT)
       // ==========================================
       return (
         <div className="marksheet-print-container relative rounded-2xl overflow-hidden shadow-2xl bg-white text-slate-900 border-[3px] border-[#0c2340] ring-1 ring-[#d97706] p-7 space-y-5">
@@ -2185,7 +2352,7 @@
           <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[11px]">
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold">👤</span>
+                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold"></span>
                 <div className="flex-1 flex items-baseline justify-between">
                   <span className="font-bold text-[#0c2340] uppercase tracking-wider">Candidate Full Name</span>
                   <span className="font-bold text-slate-900 text-xs">: {record.studentName}</span>
@@ -2193,7 +2360,7 @@
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🪪</span>
+                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold"></span>
                 <div className="flex-1 flex items-baseline justify-between">
                   <span className="font-bold text-[#0c2340] uppercase tracking-wider">Institutional Roll No.</span>
                   <span className="font-mono font-bold text-slate-900 text-xs">: {record.rollNo}</span>
@@ -2201,7 +2368,7 @@
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold">🎓</span>
+                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold"></span>
                 <div className="flex-1 flex items-baseline justify-between">
                   <span className="font-bold text-[#0c2340] uppercase tracking-wider">Degree & Branch</span>
                   <span className="font-semibold text-slate-900">: {record.program}</span>
@@ -2209,7 +2376,7 @@
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold">📅</span>
+                <span className="w-6 h-6 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[10px] shrink-0 font-bold"></span>
                 <div className="flex-1 flex items-baseline justify-between">
                   <span className="font-bold text-[#0c2340] uppercase tracking-wider">Academic Session</span>
                   <span className="font-semibold text-slate-900">: {record.semester}</span>
@@ -2414,7 +2581,7 @@
       const [aiProhibitedObject, setAiProhibitedObject] = useState('CLEAR'); // 'CLEAR', 'NOTES_DETECTED', 'DEVICE_DETECTED'
       const [aiActiveAnomalies, setAiActiveAnomalies] = useState([]);
       const [aiIncidentTimeline, setAiIncidentTimeline] = useState([
-        { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), type: 'INITIALIZED', text: '🔒 Secure AI Proctoring Video & Acoustic Engine Active', severity: 'INFO' }
+        { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), type: 'INITIALIZED', text: ' Secure AI Proctoring Video & Acoustic Engine Active', severity: 'INFO' }
       ]);
 
       // Global Live Media Stream & Real Recorded Video Blob URL
@@ -3253,10 +3420,10 @@
 
         setViolationsCount(prev => {
           const nextCount = prev + 1;
-          const violationFlag = `🚨 Window / Tab Switch Detected (${nextCount}/2 Warnings Used)`;
+          const violationFlag = `[INCIDENT] Window / Tab Switch Detected (${nextCount}/2 Warnings Used)`;
 
           setAiIncidentTimeline(tl => [
-            { time: timeStr, type: 'WINDOW_SWITCH', text: `🚨 Window Focus Lost / Switched Tab (${nextCount}/2 Warnings)`, severity: nextCount >= 2 ? 'CRITICAL' : 'WARNING' },
+            { time: timeStr, type: 'WINDOW_SWITCH', text: `[INCIDENT] Window Focus Lost / Switched Tab (${nextCount}/2 Warnings)`, severity: nextCount >= 2 ? 'CRITICAL' : 'WARNING' },
             ...tl
           ]);
 
@@ -3308,15 +3475,15 @@
           const flag = '[INCIDENT] Multiple Persons Detected in Camera Feed (Secondary Candidate Detected)';
           newAnomalies = [...new Set([flag, ...aiActiveAnomalies])];
           setAiActiveAnomalies(newAnomalies);
-          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'SECOND_PERSON', text: '🚨 2nd Person / Secondary Face Detected in Camera Feed', severity: 'CRITICAL' }, ...tl]);
+          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'SECOND_PERSON', text: '[INCIDENT] 2nd Person / Secondary Face Detected in Camera Feed', severity: 'CRITICAL' }, ...tl]);
           triggerToast('AI Proctor Alarm', 'Second Person Detected in Camera Frame!');
         } else if (type === 'CANDIDATE_MISSING') {
           newFaceCount = 0;
           setAiFaceCount(0);
-          const flag = '⚠️ Candidate Absence: No Face Detected in Camera Feed';
+          const flag = '[ALERT] Candidate Absence: No Face Detected in Camera Feed';
           newAnomalies = [...new Set([flag, ...aiActiveAnomalies])];
           setAiActiveAnomalies(newAnomalies);
-          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'CANDIDATE_MISSING', text: '⚠️ Candidate Absence: Face Out of Camera Frame', severity: 'WARNING' }, ...tl]);
+          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'CANDIDATE_MISSING', text: '[ALERT] Candidate Absence: Face Out of Camera Frame', severity: 'WARNING' }, ...tl]);
           triggerToast('AI Proctor Alert', 'Candidate Missing from Camera Frame!');
         } else if (type === 'PHONE_LIGHT') {
           newPhoneLight = true;
@@ -3324,7 +3491,7 @@
           const flag = '[INCIDENT] Mobile Device Screen Glow Detected';
           newAnomalies = [...new Set([flag, ...aiActiveAnomalies])];
           setAiActiveAnomalies(newAnomalies);
-          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'PHONE_LIGHT', text: '🚨 Electronic Device / Phone Glow Detected in Lap/Hand', severity: 'CRITICAL' }, ...tl]);
+          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'PHONE_LIGHT', text: '[INCIDENT] Electronic Device / Phone Glow Detected in Lap/Hand', severity: 'CRITICAL' }, ...tl]);
           triggerToast('AI Proctor Alarm', 'Mobile Screen / Secondary Display Light Detected!');
         } else if (type === 'GAZE_LOST') {
           newGaze = 'RIGHT';
@@ -3337,10 +3504,10 @@
         } else if (type === 'NOTES_FOUND') {
           newObject = 'NOTES_DETECTED';
           setAiProhibitedObject('NOTES_DETECTED');
-          const flag = '🚨 Prohibited Notes / Paper Materials Detected on Desk';
+          const flag = '[INCIDENT] Prohibited Notes / Paper Materials Detected on Desk';
           newAnomalies = [...new Set([flag, ...aiActiveAnomalies])];
           setAiActiveAnomalies(newAnomalies);
-          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'NOTES_FOUND', text: '🚨 Unauthorized Notes / Papers Detected on Desk', severity: 'CRITICAL' }, ...tl]);
+          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'NOTES_FOUND', text: '[INCIDENT] Unauthorized Notes / Papers Detected on Desk', severity: 'CRITICAL' }, ...tl]);
           triggerToast('AI Proctor Alarm', 'Unauthorized Notes / Papers Detected on Desk!');
         } else if (type === 'VOICE_WHISPER') {
           newDecibel = 76;
@@ -3348,7 +3515,7 @@
           const flag = '[INCIDENT] High Acoustic Energy / External Voices & Whispers (76 dB)';
           newAnomalies = [...new Set([flag, ...aiActiveAnomalies])];
           setAiActiveAnomalies(newAnomalies);
-          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'VOICE_WHISPER', text: '🚨 High Acoustic Energy / External Voice Detected (76 dB)', severity: 'CRITICAL' }, ...tl]);
+          setAiIncidentTimeline(tl => [{ time: timeStr, type: 'VOICE_WHISPER', text: '[INCIDENT] High Acoustic Energy / External Voice Detected (76 dB)', severity: 'CRITICAL' }, ...tl]);
           triggerToast('AI Audio Alert', 'Elevated Speech / Voices Detected in Room!');
         } else if (type === 'RESET_CLEAN') {
           newFaceCount = 1;
@@ -3436,7 +3603,7 @@
         const finalAnomalyFlags = aiActiveAnomalies.length > 0
           ? aiActiveAnomalies
           : violationsCount > 0
-          ? [`⚠️ ${violationsCount} Window / Focus Violations Detected`]
+          ? [`[ALERT] ${violationsCount} Window / Focus Violations Detected`]
           : [
               '[VERIFIED] Single Candidate in Frame (Face Centered)',
               '[VERIFIED] Eye Gaze & Head Orientation Compliant',
@@ -3632,7 +3799,7 @@
                               decibels: `${micDecibel || 32} dB (Room Acoustics)`,
                               riskLevel: violationsCount > 1 ? 'HIGH_RISK' : violationsCount === 1 ? 'SUSPICIOUS' : 'NEUTRAL',
                               riskScore: violationsCount > 1 ? 90 : violationsCount === 1 ? 55 : 5,
-                              anomalyFlags: violationsCount > 0 ? [`⚠️ ${violationsCount} Window / Focus Violations Detected`] : ['✓ Verified Clean Candidate Environment'],
+                              anomalyFlags: violationsCount > 0 ? [`[ALERT] ${violationsCount} Window / Focus Violations Detected`] : ['✓ Verified Clean Candidate Environment'],
                               status: examMalpracticeTerminated ? 'MALPRACTICE TERMINATED (0 GP)' : 'CONCLUDED & SEALED (NEW WEBCAM RECORDING)',
                               archiveStatus: 'ACTIVE',
                               avatar: currentUser && currentUser.avatar ? currentUser.avatar : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80',
@@ -3945,77 +4112,92 @@
 
           {/* ADMINISTRATIVE SESSION CONSOLE MODAL */}
           {showAdminConsoleModal && (
-            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto p-4 flex items-center justify-center overscroll-contain">
-              <div className="w-full max-w-lg glass-panel p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-2xl space-y-4 animate-in zoom-in-95 my-auto max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-slate-800 text-brand-400">
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200">
+              <div className="w-full max-w-lg glass-panel p-5 sm:p-7 rounded-3xl border border-indigo-500/30 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] space-y-5 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-brand-400 border border-indigo-500/30 flex items-center justify-center shadow-glow-brand">
                       <Icons.Shield />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-100">Institutional Access Console</h3>
+                      <h3 className="text-base font-black text-slate-100 font-display">Institutional Access Console</h3>
                       <p className="text-[11px] text-slate-400">Direct account switching for evaluation and administrative inspection</p>
                     </div>
                   </div>
-                  <button onClick={() => setShowAdminConsoleModal(false)} className="text-slate-400 hover:text-slate-200 text-sm">✕</button>
+                  <button onClick={() => setShowAdminConsoleModal(false)} className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700/80 text-slate-400 hover:text-slate-100 flex items-center justify-center transition-all">✕</button>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Select Institutional Role:</div>
-                  <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-3">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
+                    <span>Select Institutional Role:</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5">
                     
                     {/* Administrator Vivek */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_vivek')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={users[0]} className="w-9 h-9 text-xs font-bold" />
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_vivek')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-amber-950/20 border border-slate-800 hover:border-amber-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-amber">
+                      <div className="flex items-center gap-3.5">
+                        <UserAvatar user={users[0]} className="w-10 h-10 text-xs font-bold ring-2 ring-amber-500/30" />
                         <div className="text-left text-xs">
-                          <div className="font-bold text-slate-200 group-hover:text-brand-300">Vivek Kumar</div>
-                          <div className="text-[10px] text-slate-400">Chief Administrator & Project Lead (Roll: 11242634)</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-100 group-hover:text-amber-300 font-display text-sm">Vivek Kumar</span>
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-mono font-bold border border-amber-500/30">ADMIN</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">Chief Administrator & Project Lead (Roll: 11242634)</div>
                         </div>
                       </div>
-                      <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-amber-300 text-[10px] font-bold border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
                     </button>
 
                     {/* Administrator Shashank */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_shashank')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 cursor-pointer flex items-center justify-between transition-all group">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={users[1]} className="w-9 h-9 text-xs font-bold" />
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_shashank')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-indigo-950/20 border border-slate-800 hover:border-brand-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-brand">
+                      <div className="flex items-center gap-3.5">
+                        <UserAvatar user={users[1]} className="w-10 h-10 text-xs font-bold ring-2 ring-indigo-500/30" />
                         <div className="text-left text-xs">
-                          <div className="font-bold text-slate-200 group-hover:text-brand-300">Banda Shashank</div>
-                          <div className="text-[10px] text-slate-400">Chief System Architect & Exam Controller (Roll: 11242656)</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-100 group-hover:text-brand-300 font-display text-sm">Banda Shashank</span>
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold border border-indigo-500/30">ADMIN</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">Chief System Architect & Exam Controller (Roll: 11242656)</div>
                         </div>
                       </div>
-                      <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-indigo-300 text-[10px] font-bold border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
                     </button>
 
                     {/* Faculty Dr Vinsha */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_teacher_1')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500 cursor-pointer flex items-center justify-between transition-all group">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={users[2]} className="w-9 h-9 text-xs font-bold" />
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_teacher_1')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-purple-950/20 border border-slate-800 hover:border-purple-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-purple">
+                      <div className="flex items-center gap-3.5">
+                        <UserAvatar user={users[2]} className="w-10 h-10 text-xs font-bold ring-2 ring-purple-500/30" />
                         <div className="text-left text-xs">
-                          <div className="font-bold text-slate-200 group-hover:text-indigo-300">Dr. Vinsha Sumra</div>
-                          <div className="text-[10px] text-slate-400">Professor & Faculty Guide (ID: MMEC-CSE-101)</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-100 group-hover:text-purple-300 font-display text-sm">Dr. Vinsha Sumra</span>
+                            <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-mono font-bold border border-purple-500/30">FACULTY</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">Professor & Faculty Guide (ID: MMEC-CSE-101)</div>
                         </div>
                       </div>
-                      <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-purple-300 text-[10px] font-bold border border-purple-500/30 group-hover:bg-purple-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
                     </button>
 
                     {/* Student Rahul */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_student_rahul')} className="w-full text-left p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500 cursor-pointer flex items-center justify-between transition-all group">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={users[3]} className="w-9 h-9 text-xs font-bold" />
+                    <button type="button" onClick={() => selectInstitutionalSession('usr_student_rahul')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-emerald-950/20 border border-slate-800 hover:border-emerald-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-emerald">
+                      <div className="flex items-center gap-3.5">
+                        <UserAvatar user={users[3]} className="w-10 h-10 text-xs font-bold ring-2 ring-emerald-500/30" />
                         <div className="text-left text-xs">
-                          <div className="font-bold text-slate-200 group-hover:text-emerald-300">Rahul Verma</div>
-                          <div className="text-[10px] text-slate-400">Student Candidate, B.Tech CSE (Roll: 11242601)</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-100 group-hover:text-emerald-300 font-display text-sm">Rahul Verma</span>
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold border border-emerald-500/30">CANDIDATE</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">Student Candidate, B.Tech CSE (Roll: 11242601)</div>
                         </div>
                       </div>
-                      <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-medium border border-slate-700">Access Desk ➔</span>
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
                     </button>
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800 flex justify-end">
-                  <button onClick={() => setShowAdminConsoleModal(false)} className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300">Close</button>
+                  <button onClick={() => setShowAdminConsoleModal(false)} className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all">Close</button>
                 </div>
               </div>
             </div>
@@ -4183,7 +4365,7 @@
                 <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
                   <button
                     onClick={() => { setAuthFlowStep('login'); setCurrentView('auth_portal'); }}
-                    className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white text-sm font-bold shadow-glow-brand transition-all flex items-center gap-2.5 transform hover:-translate-y-0.5"
+                    className="btn-luxury px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white text-sm font-bold shadow-glow-brand transition-all flex items-center gap-2.5"
                   >
                     <span>Launch Examination Portal</span>
                     <Icons.ArrowRight />
@@ -4191,14 +4373,14 @@
 
                   <button
                     onClick={() => { setAuthFlowStep('reg_step1'); setCurrentView('auth_portal'); }}
-                    className="px-6 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-200 text-sm font-bold border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-glow-cyan transform hover:-translate-y-0.5"
+                    className="btn-luxury px-6 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-200 text-sm font-bold border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-glow-cyan"
                   >
                     Register Account (2FA)
                   </button>
 
                   <button
                     onClick={() => setShowAdminConsoleModal(true)}
-                    className="px-5 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-200 text-sm font-bold border border-amber-500/30 hover:border-amber-400 transition-all flex items-center gap-2 shadow-glow-amber transform hover:-translate-y-0.5"
+                    className="btn-luxury px-5 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-200 text-sm font-bold border border-amber-500/30 hover:border-amber-400 transition-all flex items-center gap-2 shadow-glow-amber"
                   >
                     <Icons.Key />
                     <span>Administrative Console</span>
@@ -4209,30 +4391,30 @@
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-8 max-w-4xl mx-auto text-left">
                   
                   {/* Metric 1: UGC CBCS 10-Point (Amber / Gold) */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-amber-950/25 border border-amber-500/30 shadow-lg hover:border-amber-400/60 transition-all transform hover:-translate-y-1">
+                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-amber-950/25 border border-amber-500/30 shadow-lg hover:border-amber-400/60 hover:shadow-glow-amber transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-amber-300 font-bold uppercase tracking-wider">UGC CBCS Scale</span>
-                      <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs">10.0 SCALE</span>
+                      <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-mono">10.0 SCALE</span>
                     </div>
                     <div className="text-2xl font-black text-amber-100 mt-2 font-mono hero-gradient-amber">10-Point Formula</div>
                     <div className="text-[11px] text-amber-300/80 mt-1 font-medium">Automated SGPA & Grade Point Computation</div>
                   </div>
 
                   {/* Metric 2: Cryptographic Authenticity (Cyber Cyan & Indigo) */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-cyan-950/25 border border-cyan-500/30 shadow-lg hover:border-cyan-400/60 transition-all transform hover:-translate-y-1">
+                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-cyan-950/25 border border-cyan-500/30 shadow-lg hover:border-cyan-400/60 hover:shadow-glow-cyan transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-cyan-300 font-bold uppercase tracking-wider">Authenticity Verification</span>
-                      <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs">SHA-256</span>
+                      <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-mono">SHA-256</span>
                     </div>
-                    <div className="text-2xl font-black text-cyan-100 mt-2 font-mono">Cryptographic QR</div>
+                    <div className="text-2xl font-black text-cyan-100 mt-2 font-mono hero-gradient-purple">Cryptographic QR</div>
                     <div className="text-[11px] text-cyan-300/80 mt-1 font-medium">Tamper-Proof Digital Grade Cards</div>
                   </div>
 
                   {/* Metric 3: Executive Leadership (Emerald & Purple) */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-emerald-950/25 border border-emerald-500/30 shadow-lg hover:border-emerald-400/60 transition-all transform hover:-translate-y-1">
+                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-emerald-950/25 border border-emerald-500/30 shadow-lg hover:border-emerald-400/60 hover:shadow-glow-emerald transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-emerald-300 font-bold uppercase tracking-wider">Lead Administrators</span>
-                      <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs">DIRECTORATE</span>
+                      <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono">DIRECTORATE</span>
                     </div>
                     <div className="text-lg font-black text-emerald-100 mt-2 hero-gradient-emerald">Vivek & Shashank</div>
                     <div className="text-[11px] text-emerald-300/80 mt-1 font-medium">Examination Control Directorate</div>
@@ -5871,7 +6053,7 @@
                       {filteredQuestionBank.length === 0 ? (
                         <div className="glass-panel p-12 rounded-2xl border border-slate-800 text-center space-y-4">
                           <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-2xl text-slate-500">
-                            🔍
+                            
                           </div>
                           <div className="space-y-1">
                             <h3 className="text-base font-bold text-slate-200">No Questions Found</h3>
@@ -5944,7 +6126,7 @@
                                       title="Copy formatted question text"
                                       className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700"
                                     >
-                                      📋
+                                      
                                     </button>
                                     <button
                                       type="button"
@@ -5952,7 +6134,7 @@
                                       title="Delete question from repository"
                                       className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-900/40"
                                     >
-                                      🗑️
+                                      
                                     </button>
                                   </div>
                                 </div>
@@ -6590,7 +6772,7 @@
                                 onClick={() => {
                                   setExamTimerMode('mcq_std');
                                   setExamSecondsLeft(50);
-                                  triggerToast('Timer Mode', '📝 50s Standard MCQ Mode Enabled');
+                                  triggerToast('Timer Mode', '50s Standard MCQ Mode Enabled');
                                 }}
                                 className={`px-2.5 py-1 rounded-lg transition-all ${
                                   examTimerMode === 'mcq_std' ? 'bg-brand-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -6775,7 +6957,7 @@
                                   <span className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border ${
                                     micDecibel > 60 ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
                                   }`}>
-                                    {micDecibel} dB • {micDecibel > 60 ? '⚠️ High Noise / Voice' : 'Normal Acoustics'}
+                                    {micDecibel} dB • {micDecibel > 60 ? '[ALERT] High Noise / Voice' : 'Normal Acoustics'}
                                   </span>
                                 </div>
 
@@ -6902,7 +7084,7 @@
                           }`}
                         >
                           <span>Archived Records ({auditSessions.filter(s => (s.archiveStatus || '').toUpperCase() === 'ARCHIVED').length})</span>
-                          {currentUser && currentUser.role !== 'ADMIN' && <span className="text-[9px] text-amber-400">🔒</span>}
+                          {currentUser && currentUser.role !== 'ADMIN' && <span className="text-[9px] text-amber-400"></span>}
                         </button>
 
                         <button
@@ -6913,7 +7095,7 @@
                           }`}
                         >
                           <span>Recycle Bin / Trash ({auditSessions.filter(s => (s.archiveStatus || '').toUpperCase() === 'DELETED').length})</span>
-                          {currentUser && currentUser.role !== 'ADMIN' && <span className="text-[9px] text-amber-400">🔒</span>}
+                          {currentUser && currentUser.role !== 'ADMIN' && <span className="text-[9px] text-amber-400"></span>}
                         </button>
                       </div>
 
@@ -6952,7 +7134,7 @@
                       if (sorted.length === 0) {
                         return (
                           <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                            <div className="text-3xl">📁</div>
+                            <div className="text-3xl"></div>
                             <div className="text-sm font-semibold text-slate-300">No recordings in this folder</div>
                             <p className="text-xs text-slate-500">Records archived or deleted by administrators will appear here.</p>
                           </div>
@@ -7019,7 +7201,7 @@
                                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                                           : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
                                       }`}>
-                                        {isHighRisk ? `🚨 TOP #${idx + 1} HIGH RISK (${session.riskScore}%)` : isSuspicious ? `⚠️ TOP #${idx + 1} SUSPICIOUS (${session.riskScore}%)` : `✓ CLEAN (RANK #${idx + 1})`}
+                                        {isHighRisk ? `[INCIDENT] TOP #${idx + 1} HIGH RISK (${session.riskScore}%)` : isSuspicious ? `[ALERT] TOP #${idx + 1} SUSPICIOUS (${session.riskScore}%)` : `✓ CLEAN (RANK #${idx + 1})`}
                                       </span>
                                     </div>
                                   </div>
@@ -8368,7 +8550,7 @@
             <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
               <div className="max-w-md w-full glass-panel p-8 rounded-2xl border border-rose-500/40 text-center space-y-4 shadow-2xl">
                 <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto text-2xl">
-                  ⚠️
+                  [ALERT]
                 </div>
                 <h2 className="text-xl font-bold text-slate-100">Interface Recovered</h2>
                 <p className="text-xs text-slate-400">
