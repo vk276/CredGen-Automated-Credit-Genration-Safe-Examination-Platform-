@@ -728,6 +728,24 @@
       ),
       Sparkles: () => (
         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+      ),
+      Mail: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      ),
+      MessageSquare: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      ),
+      Send: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      ),
+      Inbox: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      ),
+      Filter: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      ),
+      CheckCircle: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       )
     };
 
@@ -1209,6 +1227,82 @@
       aiAutoAdjustSignatures: true, // AI auto background removal and ink contrast adjustment
       securityRemarks: 'This digital grade card is cryptographically generated and certified under UGC Choice Based Credit System (CBCS) guidelines.'
     };
+
+    // 6. Institutional Support Desk, Grievances & Platform Feedback Store
+    const INITIAL_SUPPORT_QUERIES = [
+      {
+        id: 'sup_101',
+        userId: 'usr_student_rahul',
+        name: 'Rahul Verma',
+        email: 'rahul.verma@student.mmdu.ac.in',
+        phone: '+91 98980 11223',
+        role: 'STUDENT',
+        type: 'RE_EVALUATION',
+        category: 'MARKSHEET',
+        subject: 'Re-evaluation Request for CS-302 Mid-Term Assessment',
+        message: 'Respected Examination Directorate, I kindly request an evaluation re-check of Question 3 in DBMS exam (CS-302). My internal marks calculation seems to be missing 2 marks for the indexing and transaction properties problem.',
+        priority: 'HIGH',
+        status: 'OPEN',
+        admin_notes: 'Under review by Examination Controller Banda Shashank.',
+        resolved_by: null,
+        resolved_at: null,
+        created_at: '2026-09-02 10:15:00'
+      },
+      {
+        id: 'sup_102',
+        userId: 'usr_teacher_1',
+        name: 'Dr. Vinsha Sumra',
+        email: 'vinsha.sumra@mmdu.ac.in',
+        phone: '+91 98765 43210',
+        role: 'TEACHER',
+        type: 'FEEDBACK',
+        category: 'EXAMINATION',
+        subject: 'Commendation & Preset Timer Suggestion for Lab Exams',
+        message: 'The automated marksheet calculations under UGC CBCS 10-point scale and the anti-cheating window switch monitors are working smoothly. Could we add a 60-minute quick-preset button in the exam wizard for end-semester laboratory exams?',
+        priority: 'NORMAL',
+        status: 'RESOLVED',
+        admin_notes: 'Approved. 60-minute quick preset added into exam creation step 1 by admin Vivek Kumar.',
+        resolved_by: 'Vivek Kumar',
+        resolved_at: '2026-09-02 18:30:00',
+        created_at: '2026-09-02 14:20:00'
+      },
+      {
+        id: 'sup_103',
+        userId: 'usr_student_amanpreet',
+        name: 'Amanpreet Singh',
+        email: 'amanpreet.singh@student.mmdu.ac.in',
+        phone: '+91 98120 44556',
+        role: 'STUDENT',
+        type: 'EXAM_ISSUE',
+        category: 'PROCTORING',
+        subject: 'Proctoring Camera False Positive Explanation',
+        message: 'During my mid-semester test session, an alert was logged for ambient background acoustics due to construction work near my residence hall. I request the examiner to review the video audit recording.',
+        priority: 'HIGH',
+        status: 'IN_PROGRESS',
+        admin_notes: 'Audit video session reviewed. Background acoustics confirmed as external noise. Flag severity reduced.',
+        resolved_by: 'Banda Shashank',
+        resolved_at: null,
+        created_at: '2026-09-02 16:45:00'
+      },
+      {
+        id: 'sup_104',
+        userId: null,
+        name: 'Prof. Rajesh Sharma',
+        email: 'r.sharma@nitk.ac.in',
+        phone: '+91 94111 22334',
+        role: 'GUEST',
+        type: 'QUERY',
+        category: 'GENERAL',
+        subject: 'Inquiry regarding Cryptographic QR & SHA-256 Transcript Verification Protocol',
+        message: 'Greetings Examination Control Directorate, we are reviewing a transfer application and would like to confirm if the SHA-256 cryptographic verification seal on your digital transcripts can be verified directly via public API.',
+        priority: 'NORMAL',
+        status: 'OPEN',
+        admin_notes: null,
+        resolved_by: null,
+        resolved_at: null,
+        created_at: '2026-09-02 17:10:00'
+      }
+    ];
 
     // CBCS Calculation Helper functions
     const calculateCourseMetrics = (c) => {
@@ -2987,6 +3081,180 @@
       const [selectedStudentForMarksheet, setSelectedStudentForMarksheet] = useState('rec_rahul_sem6');
       const [studioActiveTab, setStudioActiveTab] = useState('MARKS_INPUT'); // 'TEMPLATE_DESIGN' | 'MARKS_INPUT'
 
+      // Institutional Support Desk, Feedback & Grievances State
+      const [supportQueries, setSupportQueries] = useState(() => {
+        try {
+          const saved = localStorage.getItem('credgen_support_queries_v1');
+          if (saved) return JSON.parse(saved);
+        } catch(e) {}
+        return INITIAL_SUPPORT_QUERIES;
+      });
+
+      React.useEffect(() => {
+        try {
+          localStorage.setItem('credgen_support_queries_v1', JSON.stringify(supportQueries));
+        } catch(e) {}
+      }, [supportQueries]);
+
+      // Fetch latest queries from SQLite backend on initial mount
+      const fetchSupportQueriesFromApi = async () => {
+        try {
+          const res = await fetch('http://127.0.0.1:5000/api/support');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.queries) && data.queries.length > 0) {
+              setSupportQueries(data.queries);
+            }
+          }
+        } catch(err) {
+          // Backend offline or local fallback
+        }
+      };
+
+      React.useEffect(() => {
+        fetchSupportQueriesFromApi();
+      }, []);
+
+      const [supportFilterStatus, setSupportFilterStatus] = useState('ALL'); // 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED'
+      const [supportFilterRole, setSupportFilterRole] = useState('ALL'); // 'ALL' | 'STUDENT' | 'TEACHER' | 'GUEST'
+      const [supportFilterType, setSupportFilterType] = useState('ALL'); // 'ALL' | 'QUERY' | 'FEEDBACK' | 'RE_EVALUATION' | 'EXAM_ISSUE'
+      const [supportSearchQuery, setSupportSearchQuery] = useState('');
+      const [selectedTicketForDetail, setSelectedTicketForDetail] = useState(null);
+      const [adminResolutionNotes, setAdminResolutionNotes] = useState('');
+      
+      // Quick Modal State for Student & Teacher in-app submission
+      const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+      const [feedbackModalRole, setFeedbackModalRole] = useState('STUDENT');
+      const [quickFeedbackForm, setQuickFeedbackForm] = useState({
+        type: 'FEEDBACK',
+        category: 'EXAMINATION',
+        subject: '',
+        message: '',
+        priority: 'NORMAL'
+      });
+
+      // Public Inquiry form state on support_contact view
+      const [publicInquiryForm, setPublicInquiryForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        type: 'QUERY',
+        category: 'GENERAL',
+        priority: 'NORMAL',
+        subject: '',
+        message: ''
+      });
+
+      // Support Desk & Feedback Submission Handler
+      const handleCreateSupportQuery = async (ticketData) => {
+        const tempId = `sup_${Date.now()}_${Math.floor(Math.random() * 900 + 100)}`;
+        const newTicket = {
+          id: tempId,
+          userId: currentUser?.id || ticketData.userId || null,
+          name: ticketData.name || currentUser?.name || 'Anonymous User',
+          email: ticketData.email || currentUser?.email || 'no-reply@mmdu.ac.in',
+          phone: ticketData.phone || currentUser?.phone || '',
+          role: currentUser?.role || ticketData.role || 'GUEST',
+          type: ticketData.type || 'QUERY',
+          category: ticketData.category || 'GENERAL',
+          subject: ticketData.subject,
+          message: ticketData.message,
+          priority: ticketData.priority || 'NORMAL',
+          status: 'OPEN',
+          admin_notes: null,
+          resolved_by: null,
+          resolved_at: null,
+          created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+        };
+
+        setSupportQueries(prev => [newTicket, ...prev]);
+
+        try {
+          const res = await fetch('http://127.0.0.1:5000/api/support', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newTicket)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.ticket && data.ticket.id) {
+              setSupportQueries(prev => prev.map(t => t.id === tempId ? data.ticket : t));
+            }
+          }
+        } catch(err) {
+          console.warn('Backend sync warning:', err);
+        }
+
+        triggerToast(
+          'Communication Logged',
+          `Your request (#${tempId.slice(-6).toUpperCase()}) has been logged with the Examination Directorate.`
+        );
+        return tempId;
+      };
+
+      // Admin Status Update & Resolution Handler
+      const handleUpdateTicketStatus = async (ticketId, nextStatus, remarks = '') => {
+        const resolvedBy = currentUser?.name || 'Vivek Kumar (Lead Administrator)';
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+        setSupportQueries(prev => prev.map(t => {
+          if (t.id === ticketId) {
+            return {
+              ...t,
+              status: nextStatus,
+              admin_notes: remarks || t.admin_notes,
+              resolved_by: nextStatus === 'RESOLVED' ? resolvedBy : t.resolved_by,
+              resolved_at: nextStatus === 'RESOLVED' ? nowStr : t.resolved_at
+            };
+          }
+          return t;
+        }));
+
+        if (selectedTicketForDetail && selectedTicketForDetail.id === ticketId) {
+          setSelectedTicketForDetail(prev => ({
+            ...prev,
+            status: nextStatus,
+            admin_notes: remarks || prev.admin_notes,
+            resolved_by: nextStatus === 'RESOLVED' ? resolvedBy : prev.resolved_by,
+            resolved_at: nextStatus === 'RESOLVED' ? nowStr : prev.resolved_at
+          }));
+        }
+
+        try {
+          await fetch(`http://127.0.0.1:5000/api/support/${ticketId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: nextStatus,
+              adminNotes: remarks,
+              resolvedBy
+            })
+          });
+        } catch(err) {
+          console.warn('Backend ticket update warning:', err);
+        }
+
+        triggerToast('Ticket Updated', `Ticket #${ticketId.slice(-6).toUpperCase()} marked as ${nextStatus}.`);
+      };
+
+      // Delete / Archive Ticket Handler
+      const handleDeleteTicket = async (ticketId) => {
+        setSupportQueries(prev => prev.filter(t => t.id !== ticketId));
+        if (selectedTicketForDetail && selectedTicketForDetail.id === ticketId) {
+          setSelectedTicketForDetail(null);
+        }
+
+        try {
+          await fetch(`http://127.0.0.1:5000/api/support/${ticketId}`, {
+            method: 'DELETE'
+          });
+        } catch(err) {
+          console.warn('Backend ticket delete warning:', err);
+        }
+
+        triggerToast('Ticket Archived', `Communication #${ticketId.slice(-6).toUpperCase()} archived.`);
+      };
+
       // Marksheet Publishing & Evaluation Handlers
       const handleTogglePublishResult = (recordId) => {
         setMarksheetRecords(prev => prev.map(rec => {
@@ -4321,8 +4589,12 @@
         window.__credGenEnrolCourse = handleEnrolCurriculumCourse;
         window.__credGenRemoveCourse = handleRemoveCourse;
         window.__credGenDownloadMarksheet = handleDownloadMarksheet;
-        window.__credGenState = { currentUser, currentView, marksheetRecords };
-      }, [currentUser, currentView, marksheetRecords]);
+        window.__credGenSupportQueries = supportQueries;
+        window.__credGenCreateSupportQuery = handleCreateSupportQuery;
+        window.__credGenUpdateTicketStatus = handleUpdateTicketStatus;
+        window.__credGenDeleteTicket = handleDeleteTicket;
+        window.__credGenState = { currentUser, currentView, marksheetRecords, supportQueries };
+      }, [currentUser, currentView, marksheetRecords, supportQueries]);
 
       // Standard Login with Password
       const handleLogin = (e) => {
@@ -4533,6 +4805,306 @@
                 <div className="pt-2 border-t border-slate-800 flex justify-end">
                   <button onClick={() => setShowAdminConsoleModal(false)} className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all">Close</button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* QUICK IN-APP FEEDBACK & GRIEVANCE MODAL (STUDENT & TEACHER) */}
+          {showFeedbackModal && (
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4 flex items-center justify-center animate-in fade-in duration-200">
+              <div className="w-full max-w-lg glass-panel p-6 sm:p-7 rounded-3xl border border-indigo-500/30 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-brand-300 border border-indigo-500/30 flex items-center justify-center">
+                      <Icons.MessageSquare />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-100 font-display">
+                        {feedbackModalRole === 'STUDENT' ? 'Candidate Grievance / Re-evaluation' : 'Faculty Platform Request / Feedback'}
+                      </h3>
+                      <p className="text-[11px] text-slate-400">Direct transmission to Examination Control Directorate</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowFeedbackModal(false)} className="w-8 h-8 rounded-lg bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center justify-center">✕</button>
+                </div>
+
+                {/* Submitter Profile Info Capsule */}
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <UserAvatar user={currentUser} className="w-8 h-8 text-xs font-bold" />
+                    <div>
+                      <div className="font-bold text-slate-200">{currentUser?.name}</div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        {currentUser?.rollNo ? `Roll: ${currentUser.rollNo}` : currentUser?.facultyId ? `Faculty ID: ${currentUser.facultyId}` : currentUser?.email}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {currentUser?.role}
+                  </span>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!quickFeedbackForm.subject || !quickFeedbackForm.message) {
+                      triggerToast('Incomplete Form', 'Please specify a subject and detailed message.');
+                      return;
+                    }
+                    await handleCreateSupportQuery({
+                      ...quickFeedbackForm,
+                      name: currentUser?.name,
+                      email: currentUser?.email,
+                      phone: currentUser?.phone,
+                      role: currentUser?.role || feedbackModalRole,
+                      userId: currentUser?.id
+                    });
+                    setShowFeedbackModal(false);
+                    setQuickFeedbackForm({
+                      type: feedbackModalRole === 'STUDENT' ? 'RE_EVALUATION' : 'FEEDBACK',
+                      category: feedbackModalRole === 'STUDENT' ? 'MARKSHEET' : 'EXAMINATION',
+                      subject: '',
+                      message: '',
+                      priority: 'NORMAL'
+                    });
+                  }}
+                  className="space-y-3.5 text-xs"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-300 font-medium mb-1">Communication Type</label>
+                      <select
+                        value={quickFeedbackForm.type}
+                        onChange={(e) => setQuickFeedbackForm({ ...quickFeedbackForm, type: e.target.value })}
+                        className="w-full p-2.5 rounded-lg form-input bg-slate-900 border border-slate-700 text-slate-200"
+                      >
+                        {feedbackModalRole === 'STUDENT' ? (
+                          <>
+                            <option value="RE_EVALUATION">Grade / Marksheet Re-evaluation</option>
+                            <option value="EXAM_ISSUE">Assessment / Proctoring Issue</option>
+                            <option value="FEEDBACK">Platform Suggestion</option>
+                            <option value="QUERY">General Academic Query</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="FEEDBACK">Platform & Exam Engine Feedback</option>
+                            <option value="FEATURE_REQUEST">Feature / Preset Timer Request</option>
+                            <option value="EXAM_ISSUE">Exam Evaluation Inquiry</option>
+                            <option value="QUERY">Administrative Query</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-medium mb-1">Category</label>
+                      <select
+                        value={quickFeedbackForm.category}
+                        onChange={(e) => setQuickFeedbackForm({ ...quickFeedbackForm, category: e.target.value })}
+                        className="w-full p-2.5 rounded-lg form-input bg-slate-900 border border-slate-700 text-slate-200"
+                      >
+                        <option value="MARKSHEET">Marksheet & CBCS SGPA</option>
+                        <option value="EXAMINATION">Online Examination</option>
+                        <option value="PROCTORING">AI Proctoring Surveillance</option>
+                        <option value="GENERAL">General Platform & Policies</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Urgency Priority</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['NORMAL', 'HIGH', 'URGENT'].map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setQuickFeedbackForm({ ...quickFeedbackForm, priority: p })}
+                          className={`py-2 rounded-lg font-mono font-bold text-[10px] border transition-all ${
+                            quickFeedbackForm.priority === p
+                              ? p === 'URGENT'
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-glow-coral'
+                                : p === 'HIGH'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-glow-amber'
+                                : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-glow-cyan'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Subject / Summary *</label>
+                    <input
+                      type="text"
+                      required
+                      value={quickFeedbackForm.subject}
+                      onChange={(e) => setQuickFeedbackForm({ ...quickFeedbackForm, subject: e.target.value })}
+                      placeholder={feedbackModalRole === 'STUDENT' ? 'e.g. Question 2 Internal Score Re-verification' : 'e.g. Timer Preset Addition for Lab Exams'}
+                      className="w-full p-2.5 rounded-lg form-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Detailed Description *</label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={quickFeedbackForm.message}
+                      onChange={(e) => setQuickFeedbackForm({ ...quickFeedbackForm, message: e.target.value })}
+                      placeholder="Please explain in detail your grievance, request, or feedback..."
+                      className="w-full p-2.5 rounded-lg form-input"
+                    ></textarea>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowFeedbackModal(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-luxury px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold shadow-glow-brand flex items-center gap-1.5"
+                    >
+                      <Icons.Send />
+                      <span>Submit to Examination Board</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN TICKET REVIEW & RESOLUTION MODAL */}
+          {selectedTicketForDetail && (
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4 flex items-center justify-center animate-in fade-in duration-200">
+              <div className="w-full max-w-xl glass-panel p-6 sm:p-7 rounded-3xl border border-indigo-500/30 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center">
+                      <Icons.ShieldCheck />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-100 font-display">Communication Review & Action</h3>
+                        <span className="font-mono text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                          #{selectedTicketForDetail.id.slice(-8).toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">Institutional Governance & Resolution Desk</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedTicketForDetail(null)} className="w-8 h-8 rounded-lg bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center justify-center">✕</button>
+                </div>
+
+                {/* Sender Metadata Box */}
+                <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-200 text-sm">{selectedTicketForDetail.name}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        selectedTicketForDetail.role === 'STUDENT'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : selectedTicketForDetail.role === 'TEACHER'
+                          ? 'bg-purple-500/20 text-purple-300'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {selectedTicketForDetail.role}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[11px] text-slate-500">
+                      {selectedTicketForDetail.created_at}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+                    <div>Email: <span className="text-slate-200">{selectedTicketForDetail.email}</span></div>
+                    <div>Phone: <span className="text-slate-200">{selectedTicketForDetail.phone || 'Not provided'}</span></div>
+                    <div>Category: <span className="text-brand-300">{selectedTicketForDetail.category}</span></div>
+                    <div>Type: <span className="text-purple-300">{selectedTicketForDetail.type}</span></div>
+                  </div>
+                </div>
+
+                {/* Inquiry Subject & Full Message */}
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Inquiry Subject:</div>
+                  <div className="text-sm font-bold text-slate-100 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    {selectedTicketForDetail.subject}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Detailed Message Content:</div>
+                  <div className="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 whitespace-pre-wrap">
+                    {selectedTicketForDetail.message}
+                  </div>
+                </div>
+
+                {/* Administrative Resolution Remarks Section */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                      <Icons.Edit />
+                      <span>Official Administrative Remarks & Resolution Note:</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Stored in SQLite & visible to sender</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={adminResolutionNotes}
+                    onChange={(e) => setAdminResolutionNotes(e.target.value)}
+                    placeholder="Enter official resolution, examination re-audit findings, or response notes..."
+                    className="w-full p-3 rounded-xl form-input bg-slate-900 border border-slate-700 text-xs text-slate-200 placeholder:text-slate-500"
+                  ></textarea>
+                </div>
+
+                {/* Modal Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Delete and archive ticket #${selectedTicketForDetail.id.slice(-6).toUpperCase()}?`)) {
+                        handleDeleteTicket(selectedTicketForDetail.id);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5"
+                  >
+                    <Icons.Trash2 />
+                    <span>Archive / Delete</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateTicketStatus(selectedTicketForDetail.id, 'IN_PROGRESS', adminResolutionNotes)}
+                      className="px-3.5 py-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-300 border border-cyan-500/30 text-xs font-semibold"
+                    >
+                      Set In Progress
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleUpdateTicketStatus(
+                          selectedTicketForDetail.id,
+                          'RESOLVED',
+                          adminResolutionNotes || 'Verified and resolved by Lead Administration.'
+                        );
+                        setSelectedTicketForDetail(null);
+                      }}
+                      className="btn-luxury px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-glow-emerald flex items-center gap-1.5"
+                    >
+                      <Icons.CheckCircle />
+                      <span>Resolve Ticket & Save</span>
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -4846,22 +5418,147 @@
                 </div>
 
                 <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                  <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Send Inquiry</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); triggerToast('Inquiry Submitted', 'Your communication has been logged with the Examination Directorate.'); }} className="space-y-3 text-xs">
-                    <div>
-                      <label className="block text-slate-300 font-medium mb-1">Full Legal Name</label>
-                      <input type="text" required placeholder="Candidate / Faculty Name" className="w-full p-2.5 rounded-lg form-input" />
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                      <Icons.MessageSquare />
+                      <span>Submit Grievance / Query / Feedback</span>
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+                      DIRECT TO ADMIN DESK
+                    </span>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!publicInquiryForm.name || !publicInquiryForm.email || !publicInquiryForm.subject || !publicInquiryForm.message) {
+                        triggerToast('Required Fields Missing', 'Please fill in all mandatory inquiry details.');
+                        return;
+                      }
+                      await handleCreateSupportQuery(publicInquiryForm);
+                      setPublicInquiryForm({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        type: 'QUERY',
+                        category: 'GENERAL',
+                        priority: 'NORMAL',
+                        subject: '',
+                        message: ''
+                      });
+                    }}
+                    className="space-y-3.5 text-xs"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Communication Type</label>
+                        <select
+                          value={publicInquiryForm.type}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, type: e.target.value })}
+                          className="w-full p-2.5 rounded-lg form-input bg-slate-900 border border-slate-700 text-slate-200"
+                        >
+                          <option value="QUERY">General Query / Inquiry</option>
+                          <option value="FEEDBACK">Platform / Exam Feedback</option>
+                          <option value="RE_EVALUATION">Grade & Marksheet Re-evaluation</option>
+                          <option value="EXAM_ISSUE">Test / Proctoring Grievance</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Academic Category</label>
+                        <select
+                          value={publicInquiryForm.category}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, category: e.target.value })}
+                          className="w-full p-2.5 rounded-lg form-input bg-slate-900 border border-slate-700 text-slate-200"
+                        >
+                          <option value="GENERAL">General Academic Affairs</option>
+                          <option value="MARKSHEET">Marksheet & CBCS SGPA</option>
+                          <option value="EXAMINATION">Examination System</option>
+                          <option value="PROCTORING">Proctoring & Anomaly Appeal</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-slate-300 font-medium mb-1">Email Address</label>
-                      <input type="email" required placeholder="name@domain.com" className="w-full p-2.5 rounded-lg form-input" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Full Legal Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={publicInquiryForm.name}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, name: e.target.value })}
+                          placeholder="Candidate / Faculty Name"
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Email Address *</label>
+                        <input
+                          type="email"
+                          required
+                          value={publicInquiryForm.email}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, email: e.target.value })}
+                          placeholder="name@domain.com"
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-slate-300 font-medium mb-1">Inquiry Description</label>
-                      <textarea rows={3} required placeholder="Describe your question..." className="w-full p-2.5 rounded-lg form-input"></textarea>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Contact Phone (Optional)</label>
+                        <input
+                          type="tel"
+                          value={publicInquiryForm.phone}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, phone: e.target.value })}
+                          placeholder="+91 98765 43210"
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Urgency Priority</label>
+                        <select
+                          value={publicInquiryForm.priority}
+                          onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, priority: e.target.value })}
+                          className="w-full p-2.5 rounded-lg form-input bg-slate-900 border border-slate-700 text-slate-200"
+                        >
+                          <option value="NORMAL">Normal Priority</option>
+                          <option value="HIGH">High Urgency</option>
+                          <option value="URGENT">Urgent (Exam Affected)</option>
+                        </select>
+                      </div>
                     </div>
-                    <button type="submit" className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-glow-brand">
-                      Submit Inquiry
+
+                    <div>
+                      <label className="block text-slate-300 font-medium mb-1">Subject / Inquiry Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={publicInquiryForm.subject}
+                        onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, subject: e.target.value })}
+                        placeholder="e.g. Question 3 Evaluation Re-check in DBMS Exam"
+                        className="w-full p-2.5 rounded-lg form-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-medium mb-1">Detailed Message / Description *</label>
+                      <textarea
+                        rows={3}
+                        required
+                        value={publicInquiryForm.message}
+                        onChange={(e) => setPublicInquiryForm({ ...publicInquiryForm, message: e.target.value })}
+                        placeholder="Please provide full details, including Course Code, Roll Number, or exam date..."
+                        className="w-full p-2.5 rounded-lg form-input"
+                      ></textarea>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn-luxury w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold shadow-glow-brand flex items-center justify-center gap-2"
+                    >
+                      <Icons.Send />
+                      <span>Transmit Request to Examination Control Board</span>
                     </button>
                   </form>
                 </div>
@@ -5129,6 +5826,21 @@
                           <span className="text-sky-400"><Icons.User /></span>
                           <span>User Registry</span>
                         </button>
+                        <button onClick={() => setCurrentView('support_inbox')} className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between ${currentView === 'support_inbox' ? 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/40 shadow-glow-brand font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'}`}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-indigo-400"><Icons.Inbox /></span>
+                            <span>Support & Feedback Inbox</span>
+                          </div>
+                          {supportQueries.filter(q => q.status === 'OPEN').length > 0 ? (
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse">
+                              {supportQueries.filter(q => q.status === 'OPEN').length} OPEN
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono text-slate-500 border border-slate-800">
+                              {supportQueries.length}
+                            </span>
+                          )}
+                        </button>
                         <button onClick={() => setCurrentView('cbcs_rules')} className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 ${currentView === 'cbcs_rules' ? 'bg-amber-600/20 text-amber-200 border border-amber-500/40 shadow-glow-amber font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'}`}>
                           <span className="text-amber-400"><Icons.Award /></span>
                           <span>UGC CBCS Policies</span>
@@ -5162,6 +5874,10 @@
                           <span className="text-emerald-400"><Icons.BookOpen /></span>
                           <span>Question Repository</span>
                         </button>
+                        <button onClick={() => { setFeedbackModalRole('TEACHER'); setQuickFeedbackForm({ type: 'FEEDBACK', category: 'EXAMINATION', subject: '', message: '', priority: 'NORMAL' }); setShowFeedbackModal(true); }} className="w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 text-slate-400 hover:text-slate-200 hover:bg-slate-900/80">
+                          <span className="text-purple-400"><Icons.MessageSquare /></span>
+                          <span>Faculty Request / Feedback</span>
+                        </button>
                       </>
                     )}
 
@@ -5185,6 +5901,10 @@
                               <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">PENDING</span>
                             )}
                           </div>
+                        </button>
+                        <button onClick={() => { setFeedbackModalRole('STUDENT'); setQuickFeedbackForm({ type: 'RE_EVALUATION', category: 'MARKSHEET', subject: '', message: '', priority: 'HIGH' }); setShowFeedbackModal(true); }} className="w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 text-slate-400 hover:text-slate-200 hover:bg-slate-900/80">
+                          <span className="text-emerald-400"><Icons.MessageSquare /></span>
+                          <span>Grievance / Re-evaluation</span>
                         </button>
                       </>
                     )}
@@ -5466,6 +6186,387 @@
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* INSTITUTIONAL SUPPORT DESK, GRIEVANCES & FEEDBACK INBOX */}
+                {currentView === 'support_inbox' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    {/* Header Banner */}
+                    <div className="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <h1 className="text-xl font-black text-slate-100 font-display">
+                            Institutional Support Desk & Feedback Inbox
+                          </h1>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            SQLITE PERSISTENT STORE
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Centralized communication stream for candidate grievances, faculty requests, proctoring appeals, and university portal feedback.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={fetchSupportQueriesFromApi}
+                          className="btn-luxury px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-2 transition-all shadow"
+                          title="Synchronize real-time tickets from SQLite database"
+                        >
+                          <Icons.RotateCcw />
+                          <span>Sync from Database</span>
+                        </button>
+                        <span className="px-3 py-2 rounded-xl bg-indigo-950/40 text-indigo-300 border border-indigo-500/30 text-xs font-mono font-bold">
+                          {supportQueries.length} Total Tickets
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Executive KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-indigo-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display flex items-center justify-between">
+                          <span>Total Inbound Records</span>
+                          <span className="text-indigo-400"><Icons.Inbox /></span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-100 mt-1 font-mono">
+                          {supportQueries.length}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-1">All Roles & Inquiries</div>
+                      </div>
+
+                      <div className="glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-rose-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display flex items-center justify-between">
+                          <span>Pending / Open Action</span>
+                          <span className="text-rose-400 animate-pulse"><Icons.AlertTriangle /></span>
+                        </div>
+                        <div className="text-2xl font-black text-rose-400 mt-1 font-mono">
+                          {supportQueries.filter(q => q.status === 'OPEN').length}
+                        </div>
+                        <div className="text-[11px] text-rose-300 mt-1 font-medium">Awaiting Administrator Review</div>
+                      </div>
+
+                      <div className="glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-amber-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display flex items-center justify-between">
+                          <span>High & Urgent Priority</span>
+                          <span className="text-amber-400"><Icons.Zap /></span>
+                        </div>
+                        <div className="text-2xl font-black text-amber-400 mt-1 font-mono">
+                          {supportQueries.filter(q => q.priority === 'HIGH' || q.priority === 'URGENT').length}
+                        </div>
+                        <div className="text-[11px] text-amber-300 mt-1 font-medium">Exam & Re-evaluation Urgency</div>
+                      </div>
+
+                      <div className="glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-emerald-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display flex items-center justify-between">
+                          <span>Resolution Rate</span>
+                          <span className="text-emerald-400"><Icons.CheckCircle /></span>
+                        </div>
+                        <div className="text-2xl font-black text-emerald-400 mt-1 font-mono">
+                          {supportQueries.length > 0
+                            ? ((supportQueries.filter(q => q.status === 'RESOLVED').length / supportQueries.length) * 100).toFixed(0)
+                            : 100}%
+                        </div>
+                        <div className="text-[11px] text-emerald-300 mt-1 font-medium">
+                          {supportQueries.filter(q => q.status === 'RESOLVED').length} Tickets Solved
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filter & Search Toolbar */}
+                    <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-3">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        {/* Search Input */}
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={supportSearchQuery}
+                            onChange={(e) => setSupportSearchQuery(e.target.value)}
+                            placeholder="Search by sender name, roll number, email, ticket ID, or subject..."
+                            className="w-full pl-4 pr-4 py-2.5 rounded-xl form-input bg-slate-900 border border-slate-700 text-xs text-slate-100 placeholder:text-slate-500"
+                          />
+                        </div>
+
+                        {/* Status Filter Pills */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-semibold">
+                          {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map(st => (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => setSupportFilterStatus(st)}
+                              className={`px-3 py-1.5 rounded-lg transition-all ${
+                                supportFilterStatus === st
+                                  ? 'bg-brand-600 text-white shadow-glow-brand'
+                                  : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                              }`}
+                            >
+                              {st === 'ALL' ? 'All Status' : st === 'IN_PROGRESS' ? 'In Progress' : st}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Secondary Filter Row: Role & Type */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 font-medium">Role:</span>
+                          {['ALL', 'STUDENT', 'TEACHER', 'GUEST'].map(rl => (
+                            <button
+                              key={rl}
+                              type="button"
+                              onClick={() => setSupportFilterRole(rl)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                supportFilterRole === rl
+                                  ? 'bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 font-bold'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {rl === 'ALL' ? 'All Roles' : rl === 'STUDENT' ? 'Candidates' : rl === 'TEACHER' ? 'Faculty' : 'Public'}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 font-medium">Category:</span>
+                          {['ALL', 'RE_EVALUATION', 'FEEDBACK', 'EXAM_ISSUE', 'QUERY'].map(tp => (
+                            <button
+                              key={tp}
+                              type="button"
+                              onClick={() => setSupportFilterType(tp)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                supportFilterType === tp
+                                  ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40 font-bold'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {tp === 'ALL' ? 'All Types' : tp.replace('_', ' ')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Support Tickets Stream Table / List */}
+                    <div className="space-y-3">
+                      {(() => {
+                        const filtered = supportQueries.filter(t => {
+                          if (supportFilterStatus !== 'ALL' && t.status !== supportFilterStatus) return false;
+                          if (supportFilterRole !== 'ALL' && t.role !== supportFilterRole) return false;
+                          if (supportFilterType !== 'ALL' && t.type !== supportFilterType) return false;
+                          if (supportSearchQuery) {
+                            const q = supportSearchQuery.toLowerCase();
+                            const match = (t.name || '').toLowerCase().includes(q) ||
+                                          (t.email || '').toLowerCase().includes(q) ||
+                                          (t.subject || '').toLowerCase().includes(q) ||
+                                          (t.message || '').toLowerCase().includes(q) ||
+                                          (t.id || '').toLowerCase().includes(q);
+                            if (!match) return false;
+                          }
+                          return true;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="glass-panel p-12 rounded-2xl border border-slate-800 text-center space-y-3">
+                              <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+                                <Icons.Inbox />
+                              </div>
+                              <h3 className="text-sm font-bold text-slate-300 font-display">No Communication Tickets Match Criteria</h3>
+                              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                                No active inquiries or grievances found under the selected filters.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => { setSupportFilterStatus('ALL'); setSupportFilterRole('ALL'); setSupportFilterType('ALL'); setSupportSearchQuery(''); }}
+                                className="px-3.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs border border-slate-700"
+                              >
+                                Reset All Filters
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return filtered.map(ticket => {
+                          const isResolved = ticket.status === 'RESOLVED';
+                          const isOpen = ticket.status === 'OPEN';
+                          const isUrgent = ticket.priority === 'URGENT' || ticket.priority === 'HIGH';
+
+                          return (
+                            <div
+                              key={ticket.id}
+                              className={`glass-panel p-5 rounded-2xl border transition-all space-y-3 hover:shadow-lg ${
+                                isOpen && isUrgent
+                                  ? 'border-rose-500/40 bg-rose-950/10'
+                                  : isResolved
+                                  ? 'border-emerald-500/30 bg-emerald-950/5'
+                                  : 'border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              {/* Card Header Row */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="font-mono font-bold text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                                    #{ticket.id.slice(-8).toUpperCase()}
+                                  </span>
+
+                                  {/* Priority Badge */}
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                                    ticket.priority === 'URGENT'
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                                      : ticket.priority === 'HIGH'
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                      : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                                  }`}>
+                                    {ticket.priority} PRIORITY
+                                  </span>
+
+                                  {/* Type Badge */}
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    {ticket.type}
+                                  </span>
+
+                                  {/* Category Badge */}
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
+                                    {ticket.category}
+                                  </span>
+                                </div>
+
+                                {/* Status Pill */}
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 border ${
+                                    isResolved
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                      : isOpen
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? 'bg-emerald-400' : isOpen ? 'bg-rose-400 animate-pulse' : 'bg-cyan-400'}`} />
+                                    <span>{ticket.status}</span>
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 font-mono">
+                                    {ticket.created_at || 'Just now'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Sender Profile & Subject */}
+                              <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                                <div className="space-y-1 flex-1">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="font-bold text-slate-200">{ticket.name}</span>
+                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                                      ticket.role === 'STUDENT'
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : ticket.role === 'TEACHER'
+                                        ? 'bg-purple-500/20 text-purple-300'
+                                        : 'bg-slate-800 text-slate-400'
+                                    }`}>
+                                      {ticket.role}
+                                    </span>
+                                    <span className="text-slate-500">•</span>
+                                    <span className="text-slate-400 text-[11px]">{ticket.email}</span>
+                                    {ticket.phone && (
+                                      <>
+                                        <span className="text-slate-500">•</span>
+                                        <span className="text-slate-400 text-[11px] font-mono">{ticket.phone}</span>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  <h3 className="text-sm font-bold text-slate-100 pt-0.5">
+                                    {ticket.subject}
+                                  </h3>
+                                  <p className="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-3 rounded-xl border border-slate-800/80">
+                                    {ticket.message}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Admin Resolution Remarks Box (If already resolved or notes entered) */}
+                              {ticket.admin_notes && (
+                                <div className="p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-xs space-y-1">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                                      <Icons.ShieldCheck />
+                                      <span>Administrative Action & Resolution Note</span>
+                                    </span>
+                                    <span className="text-slate-400 font-mono">
+                                      Logged by {ticket.resolved_by || 'Controller'} {ticket.resolved_at ? `(${ticket.resolved_at})` : ''}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-200 text-xs">
+                                    {ticket.admin_notes}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Action Buttons Toolbar */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedTicketForDetail(ticket);
+                                    setAdminResolutionNotes(ticket.admin_notes || '');
+                                  }}
+                                  className="btn-luxury px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-glow-brand"
+                                >
+                                  <Icons.Edit />
+                                  <span>Review, Resolve & Reply</span>
+                                </button>
+
+                                <div className="flex items-center gap-2">
+                                  {ticket.status !== 'IN_PROGRESS' && ticket.status !== 'RESOLVED' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTicketStatus(ticket.id, 'IN_PROGRESS', ticket.admin_notes || 'Assigned to Examination Controller for verification.')}
+                                      className="px-3 py-1.5 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1"
+                                    >
+                                      <span>Mark In Progress</span>
+                                    </button>
+                                  )}
+
+                                  {!isResolved ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTicketStatus(ticket.id, 'RESOLVED', ticket.admin_notes || 'Verified and resolved by Examination Administration.')}
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1"
+                                    >
+                                      <Icons.CheckCircle />
+                                      <span>Quick Resolve</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTicketStatus(ticket.id, 'OPEN', ticket.admin_notes || '')}
+                                      className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs border border-slate-800"
+                                    >
+                                      <span>Reopen Ticket</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Archive and delete ticket #${ticket.id.slice(-6).toUpperCase()} from the database?`)) {
+                                        handleDeleteTicket(ticket.id);
+                                      }
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs"
+                                    title="Archive & Delete ticket"
+                                  >
+                                    <Icons.Trash2 />
+                                  </button>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+
                   </div>
                 )}
 
@@ -8828,15 +9929,37 @@
                           </p>
                         </div>
                         
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadMarksheet(studentRecord)}
-                          className="btn-luxury px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-bold shadow-glow-emerald flex items-center gap-2 transition-all font-display"
-                          title="Download crisp official A4 marksheet PDF"
-                        >
-                          <Icons.Download />
-                          <span>Download Official Marksheet (PDF)</span>
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFeedbackModalRole('STUDENT');
+                              setQuickFeedbackForm({
+                                type: 'RE_EVALUATION',
+                                category: 'MARKSHEET',
+                                subject: `Re-evaluation Request for ${studentRecord.semester || 'Semester VI'} (${studentRecord.rollNo})`,
+                                message: `I, ${studentRecord.studentName}, request a formal re-evaluation and audit of my course marks for ${studentRecord.semester || 'current term'}.`,
+                                priority: 'HIGH'
+                              });
+                              setShowFeedbackModal(true);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 flex items-center gap-2 transition-all"
+                            title="Submit a formal grade review or marksheet grievance"
+                          >
+                            <Icons.MessageSquare />
+                            <span>Request Re-evaluation</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadMarksheet(studentRecord)}
+                            className="btn-luxury px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-bold shadow-glow-emerald flex items-center gap-2 transition-all font-display"
+                            title="Download crisp official A4 marksheet PDF"
+                          >
+                            <Icons.Download />
+                            <span>Download Official Marksheet (PDF)</span>
+                          </button>
+                        </div>
                       </div>
 
                       <div className="w-full overflow-x-auto pb-4 custom-scrollbar rounded-2xl">

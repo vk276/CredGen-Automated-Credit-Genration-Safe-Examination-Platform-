@@ -357,6 +357,68 @@ def init_database():
         ])
         print("[DB-INIT] Initialized proctoring forensic audit sessions.")
 
+    # 6. Institutional Support Desk, Feedback & Grievances Table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS support_queries (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        role TEXT NOT NULL DEFAULT 'GUEST',
+        type TEXT NOT NULL DEFAULT 'QUERY',
+        category TEXT NOT NULL DEFAULT 'GENERAL',
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        priority TEXT NOT NULL DEFAULT 'NORMAL',
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        admin_notes TEXT,
+        resolved_by TEXT,
+        resolved_at TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("SELECT COUNT(*) as count FROM support_queries")
+    if cur.fetchone()["count"] == 0:
+        cur.executemany("""
+        INSERT INTO support_queries (id, user_id, name, email, phone, role, type, category, subject, message, priority, status, admin_notes, resolved_by, resolved_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            (
+                'sup_101', 'usr_student_rahul', 'Rahul Verma', 'rahul.verma@student.mmdu.ac.in', '+91 98980 11223',
+                'STUDENT', 'RE_EVALUATION', 'MARKSHEET',
+                'Re-evaluation Request for CS-302 Mid-Term Assessment',
+                'Respected Examination Directorate, I kindly request an evaluation re-check of Question 3 in DBMS exam (CS-302). My internal marks calculation seems to be missing 2 marks for the indexing and transaction properties problem.',
+                'HIGH', 'OPEN', 'Under review by Examination Controller Banda Shashank.', None, None
+            ),
+            (
+                'sup_102', 'usr_teacher_1', 'Dr. Vinsha Sumra', 'vinsha.sumra@mmdu.ac.in', '+91 98765 43210',
+                'TEACHER', 'FEEDBACK', 'EXAMINATION',
+                'Commendation & Preset Timer Suggestion for Lab Exams',
+                'The automated marksheet calculations under UGC CBCS 10-point scale and the anti-cheating window switch monitors are working smoothly. Could we add a 60-minute quick-preset button in the exam wizard for end-semester laboratory exams?',
+                'NORMAL', 'RESOLVED',
+                'Approved. 60-minute quick preset added into exam creation step 1 by admin Vivek Kumar.', 'Vivek Kumar', '2026-09-02 18:30:00'
+            ),
+            (
+                'sup_103', 'usr_student_amanpreet', 'Amanpreet Singh', 'amanpreet.singh@student.mmdu.ac.in', '+91 98120 44556',
+                'STUDENT', 'EXAM_ISSUE', 'PROCTORING',
+                'Proctoring Camera False Positive Explanation',
+                'During my mid-semester test session, an alert was logged for ambient background acoustics due to construction work near my residence hall. I request the examiner to review the video audit recording.',
+                'HIGH', 'IN_PROGRESS',
+                'Audit video session reviewed. Background acoustics confirmed as external noise. Flag severity reduced.', 'Banda Shashank', None
+            ),
+            (
+                'sup_104', None, 'Prof. Rajesh Sharma', 'r.sharma@nitk.ac.in', '+91 94111 22334',
+                'GUEST', 'QUERY', 'GENERAL',
+                'Inquiry regarding Cryptographic QR & SHA-256 Transcript Verification Protocol',
+                'Greetings Examination Control Directorate, we are reviewing a transfer application and would like to confirm if the SHA-256 cryptographic verification seal on your digital transcripts can be verified directly via public API.',
+                'NORMAL', 'OPEN',
+                None, None, None
+            )
+        ])
+        print("[DB-INIT] Initialized institutional support desk queries and feedback records.")
+
     conn.commit()
     conn.close()
 
@@ -535,6 +597,50 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 sessions.append(s)
             conn.close()
             self.send_json({"success": True, "sessions": sessions, "count": len(sessions)})
+            return
+
+        # 8. Support Desk Queries, Feedback & Grievances
+        if path == '/api/support' or path == '/api/support/queries':
+            status_filter = query.get('status', [None])[0]
+            role_filter = query.get('role', [None])[0]
+            type_filter = query.get('type', [None])[0]
+            category_filter = query.get('category', [None])[0]
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            sql = "SELECT * FROM support_queries WHERE 1=1"
+            params = []
+            if status_filter:
+                sql += " AND UPPER(status) = ?"
+                params.append(status_filter.upper())
+            if role_filter:
+                sql += " AND UPPER(role) = ?"
+                params.append(role_filter.upper())
+            if type_filter:
+                sql += " AND UPPER(type) = ?"
+                params.append(type_filter.upper())
+            if category_filter:
+                sql += " AND UPPER(category) = ?"
+                params.append(category_filter.upper())
+
+            sql += " ORDER BY CASE priority WHEN 'URGENT' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'NORMAL' THEN 3 ELSE 4 END, created_at DESC"
+            cur.execute(sql, params)
+            records = [dict(r) for r in cur.fetchall()]
+            conn.close()
+            self.send_json({"success": True, "queries": records, "count": len(records)})
+            return
+
+        if path.startswith('/api/support/'):
+            ticket_id = path.split('/')[3]
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            row = cur.fetchone()
+            conn.close()
+            if row:
+                self.send_json({"success": True, "query": dict(row)})
+            else:
+                self.send_json({"success": False, "message": "Support query not found."}, 404)
             return
 
         self.send_json({"error": "Endpoint not found", "path": path}, 404)
@@ -944,6 +1050,126 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             })
             return
 
+        # 13. Create Support Desk Query / Feedback / Grievance
+        if path == '/api/support' or path == '/api/support/create':
+            name = body.get('name', '').strip()
+            email = body.get('email', '').strip()
+            subject = body.get('subject', '').strip()
+            message = body.get('message', '').strip()
+
+            if not name or not email or not subject or not message:
+                self.send_json({"success": False, "message": "Name, email, subject, and message are required."}, 400)
+                return
+
+            user_id = body.get('userId')
+            phone = body.get('phone', '')
+            role = body.get('role', 'GUEST').upper()
+            q_type = body.get('type', 'QUERY').upper()
+            category = body.get('category', 'GENERAL').upper()
+            priority = body.get('priority', 'NORMAL').upper()
+
+            ticket_id = f"sup_{int(time.time())}_{random.randint(100, 999)}"
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            INSERT INTO support_queries (id, user_id, name, email, phone, role, type, category, subject, message, priority, status, admin_notes, resolved_by, resolved_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', NULL, NULL, NULL)
+            """, (ticket_id, user_id, name, email, phone, role, q_type, category, subject, message, priority))
+            conn.commit()
+
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            created_ticket = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[SUPPORT-DESK] Logged new query {ticket_id} ({subject}) from {name} [{role}].")
+            self.send_json({
+                "success": True,
+                "message": "Communication logged successfully with Examination Directorate. Reference Ticket ID: " + ticket_id,
+                "ticket": created_ticket
+            }, 201)
+            return
+
+        # 14. Update Support Query Status / Remarks (POST compatibility)
+        if path.startswith('/api/support/') and any(action in path for action in ['/status', '/resolve', '/update']):
+            ticket_id = path.split('/')[3]
+            status = body.get('status', 'RESOLVED').upper()
+            admin_notes = body.get('adminNotes') or body.get('admin_notes', '')
+            resolved_by = body.get('resolvedBy') or body.get('resolved_by', 'Administrator')
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            if not cur.fetchone():
+                conn.close()
+                self.send_json({"success": False, "message": "Support query not found."}, 404)
+                return
+
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if status in ('RESOLVED', 'CLOSED') else None
+            cur.execute("""
+            UPDATE support_queries 
+            SET status = ?, admin_notes = ?, resolved_by = ?, resolved_at = COALESCE(?, resolved_at)
+            WHERE id = ?
+            """, (status, admin_notes, resolved_by, now_str, ticket_id))
+            conn.commit()
+
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            updated_ticket = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[SUPPORT-DESK] Ticket {ticket_id} updated: status={status}, by={resolved_by}")
+            self.send_json({
+                "success": True,
+                "message": f"Support ticket status updated to {status}.",
+                "ticket": updated_ticket
+            })
+            return
+
+        self.send_json({"error": "Endpoint not found", "path": path}, 404)
+
+    # -------------------------------------------------------------
+    # PUT Endpoints Router
+    # -------------------------------------------------------------
+    def do_PUT(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        body = self.read_json_body()
+
+        # Update Support Query Status & Remarks via PUT
+        if path.startswith('/api/support/'):
+            ticket_id = path.split('/')[3]
+            status = body.get('status', 'RESOLVED').upper()
+            admin_notes = body.get('adminNotes') or body.get('admin_notes', '')
+            resolved_by = body.get('resolvedBy') or body.get('resolved_by', 'Administrator')
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            if not cur.fetchone():
+                conn.close()
+                self.send_json({"success": False, "message": "Support query not found."}, 404)
+                return
+
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if status in ('RESOLVED', 'CLOSED') else None
+            cur.execute("""
+            UPDATE support_queries 
+            SET status = ?, admin_notes = ?, resolved_by = ?, resolved_at = COALESCE(?, resolved_at)
+            WHERE id = ?
+            """, (status, admin_notes, resolved_by, now_str, ticket_id))
+            conn.commit()
+
+            cur.execute("SELECT * FROM support_queries WHERE id = ?", (ticket_id,))
+            updated_ticket = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[SUPPORT-DESK] Ticket {ticket_id} updated via PUT: status={status}, by={resolved_by}")
+            self.send_json({
+                "success": True,
+                "message": f"Support ticket status updated to {status}.",
+                "ticket": updated_ticket
+            })
+            return
+
         self.send_json({"error": "Endpoint not found", "path": path}, 404)
 
     # -------------------------------------------------------------
@@ -975,7 +1201,23 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "message": "Question deleted from repository.", "questionId": q_id})
             return
 
+        # 3. Delete / Archive support ticket
+        if path.startswith('/api/support/'):
+            ticket_id = path.split('/')[3]
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM support_queries WHERE id = ?", (ticket_id,))
+            conn.commit()
+            conn.close()
+            print(f"[SUPPORT-DESK] Ticket {ticket_id} deleted.")
+            self.send_json({"success": True, "message": "Support ticket deleted successfully.", "ticketId": ticket_id})
+            return
+
         self.send_json({"error": "Endpoint not found", "path": path}, 404)
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
 
 def main():
     init_database()
@@ -985,8 +1227,7 @@ def main():
     print("=" * 70)
     
     server_address = ('', PORT)
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(server_address, CredGenApiServer) as httpd:
+    with ThreadedTCPServer(server_address, CredGenApiServer) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
