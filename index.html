@@ -357,6 +357,116 @@
       animation: qrScanLine 2.5s ease-in-out infinite;
     }
 
+    /* Magic Border Beam Animation (Conic Rotating Light Perimeter) */
+    @keyframes conicRotate {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .border-beam-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1.25rem;
+      padding: 1.5px;
+    }
+
+    .border-beam-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 270deg,
+        #6366f1 315deg,
+        #06b6d4 340deg,
+        #a855f7 360deg
+      );
+      animation: conicRotate 6s linear infinite;
+    }
+
+    .border-beam-content {
+      position: relative;
+      z-index: 1;
+      border-radius: calc(1.25rem - 1.5px);
+      background: rgba(11, 17, 33, 0.95);
+      backdrop-filter: blur(20px);
+    }
+
+    /* Holographic Academic Foil Reflection */
+    .holographic-shield {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .holographic-shield::after {
+      content: '';
+      position: absolute;
+      top: -100%;
+      left: -100%;
+      width: 300%;
+      height: 300%;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255, 255, 255, 0.3) 30%,
+        rgba(6, 182, 212, 0.35) 38%,
+        rgba(168, 85, 247, 0.35) 45%,
+        transparent 55%
+      );
+      transform: rotate(25deg);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .holographic-shield:hover::after {
+      opacity: 1;
+      animation: shineSweep 1.8s ease-in-out infinite;
+    }
+
+    @keyframes shineSweep {
+      0% {
+        transform: translateY(-80%) rotate(25deg);
+      }
+      100% {
+        transform: translateY(80%) rotate(25deg);
+      }
+    }
+
+    /* Staggered Cascade Entrance Animations */
+    @keyframes cascadeUp {
+      0% {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-cascade-1 {
+      animation: cascadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
+      opacity: 0;
+    }
+    .animate-cascade-2 {
+      animation: cascadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
+      opacity: 0;
+    }
+    .animate-cascade-3 {
+      animation: cascadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.19s forwards;
+      opacity: 0;
+    }
+
     /* Metallic Foil Shimmer */
     .gold-shimmer-badge {
       background: linear-gradient(90deg, #b45309 0%, #fef08a 50%, #b45309 100%);
@@ -1719,6 +1829,154 @@
       </svg>
     );
 
+    // Interactive Constellation & Node Network Canvas for Hero Section
+    function HeroConstellationCanvas() {
+      const canvasRef = React.useRef(null);
+
+      React.useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let animId;
+        let width = canvas.width = canvas.parentElement ? canvas.parentElement.offsetWidth : window.innerWidth;
+        let height = canvas.height = canvas.parentElement ? canvas.parentElement.offsetHeight : 500;
+
+        const handleResize = () => {
+          if (!canvas || !canvas.parentElement) return;
+          width = canvas.width = canvas.parentElement.offsetWidth;
+          height = canvas.height = canvas.parentElement.offsetHeight;
+        };
+        window.addEventListener('resize', handleResize);
+
+        const particles = [];
+        const count = Math.min(Math.floor((width * height) / 10000), 70);
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: (Math.random() - 0.5) * 0.4,
+            radius: Math.random() * 1.6 + 0.8,
+            color: i % 3 === 0 ? 'rgba(99, 102, 241, ' : (i % 3 === 1 ? 'rgba(6, 182, 212, ' : 'rgba(168, 85, 247, '),
+            alpha: Math.random() * 0.45 + 0.25
+          });
+        }
+
+        let mouse = { x: -1000, y: -1000 };
+        const handleMouseMove = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          mouse.x = e.clientX - rect.left;
+          mouse.y = e.clientY - rect.top;
+        };
+        const handleMouseLeave = () => {
+          mouse.x = -1000;
+          mouse.y = -1000;
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseleave', handleMouseLeave);
+
+        const render = () => {
+          ctx.clearRect(0, 0, width, height);
+
+          // Draw particle connections
+          for (let i = 0; i < particles.length; i++) {
+            const p1 = particles[i];
+            p1.x += p1.vx;
+            p1.y += p1.vy;
+            if (p1.x < 0 || p1.x > width) p1.vx *= -1;
+            if (p1.y < 0 || p1.y > height) p1.vy *= -1;
+
+            // Draw particle
+            ctx.beginPath();
+            ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p1.color + p1.alpha + ')';
+            ctx.fill();
+
+            // Connect near neighbors
+            for (let j = i + 1; j < particles.length; j++) {
+              const p2 = particles[j];
+              const dx = p1.x - p2.x;
+              const dy = p1.y - p2.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 115) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = `rgba(99, 102, 241, ${0.16 * (1 - dist / 115)})`;
+                ctx.lineWidth = 0.75;
+                ctx.stroke();
+              }
+            }
+
+            // Connect to mouse pointer
+            const mdx = p1.x - mouse.x;
+            const mdy = p1.y - mouse.y;
+            const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+            if (mdist < 140) {
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(mouse.x, mouse.y);
+              ctx.strokeStyle = `rgba(6, 182, 212, ${0.4 * (1 - mdist / 140)})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+
+          animId = requestAnimationFrame(render);
+        };
+
+        render();
+
+        return () => {
+          cancelAnimationFrame(animId);
+          window.removeEventListener('resize', handleResize);
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseleave', handleMouseLeave);
+        };
+      }, []);
+
+      return (
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 pointer-events-none z-0 opacity-75"
+        />
+      );
+    }
+
+    // Professional Animated Stat Counter Component
+    function AnimatedStatCounter({ target, decimals = 0, suffix = '', duration = 1100 }) {
+      const [value, setValue] = React.useState(0);
+
+      React.useEffect(() => {
+        const end = parseFloat(target);
+        if (isNaN(end)) return;
+        const startTime = performance.now();
+
+        const update = (now) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          // cubic ease out
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = end * eased;
+          setValue(current);
+
+          if (progress < 1) {
+            requestAnimationFrame(update);
+          } else {
+            setValue(end);
+          }
+        };
+
+        requestAnimationFrame(update);
+      }, [target, duration]);
+
+      return (
+        <span>
+          {value.toFixed(decimals)}{suffix}
+        </span>
+      );
+    }
+
     // Dynamic Multi-Asset Renderers (Seamlessly supports default vector seals or uploaded custom PNG/JPG with AI contrast)
     const InstitutionLogoRenderer = ({ settings, className = "w-20 h-20" }) => {
       if (settings && settings.uploadedInstitutionLogo) {
@@ -2055,7 +2313,9 @@
 
               <div className="p-3 rounded-xl border-2 border-[#1e3a8a] bg-blue-50 text-center shadow-sm">
                 <span className="text-[9px] uppercase font-black text-blue-900 block">Semester SGPA</span>
-                <div className="text-2xl font-mono font-black text-blue-950">{gpa.sgpa}</div>
+                <div className="text-2xl font-mono font-black text-blue-950">
+                  {isPrint ? gpa.sgpa : <AnimatedStatCounter target={gpa.sgpa} decimals={2} />}
+                </div>
                 <span className="text-[8px] font-mono font-bold text-blue-700">/ 10.00 SCALE</span>
               </div>
 
@@ -4339,33 +4599,37 @@
           {currentView === 'landing' && (
             <div className="flex-1 flex flex-col">
               
-              <section className="relative pt-14 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full text-center space-y-7">
+              <section className="relative pt-14 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full text-center space-y-7 overflow-hidden">
+                {/* Interactive Dynamic Node Constellation Network */}
+                <HeroConstellationCanvas />
                 
-                {/* University Institutional Banner Badge */}
-                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-950/80 via-purple-950/60 to-cyan-950/80 border border-indigo-500/30 text-indigo-300 text-xs font-semibold shadow-glow-brand animate-in fade-in">
-                  <span className="p-1 rounded-full bg-indigo-500/20 text-indigo-300">
-                    <Icons.Building />
-                  </span>
-                  <span>Maharishi Markandeshwar (Deemed to be University), Mullana</span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
-                    NAAC Grade A++
-                  </span>
+                {/* University Institutional Banner Badge with Rotating Border Beam */}
+                <div className="relative z-10 inline-block border-beam-container shadow-glow-brand animate-cascade-1">
+                  <div className="border-beam-content inline-flex items-center gap-2.5 px-4 py-1.5 text-indigo-300 text-xs font-semibold">
+                    <span className="p-1 rounded-full bg-indigo-500/20 text-indigo-300">
+                      <Icons.Building />
+                    </span>
+                    <span className="font-display">Maharishi Markandeshwar (Deemed to be University), Mullana</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold gold-shimmer-badge">
+                      NAAC Grade A++
+                    </span>
+                  </div>
                 </div>
 
                 {/* Hero Title with Dazzling Iridescent Gradient */}
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight hero-gradient-text leading-tight max-w-4xl mx-auto">
+                <h1 className="relative z-10 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight hero-gradient-text leading-tight max-w-4xl mx-auto font-display animate-cascade-2">
                   Automated Marksheet & Academic Credit Generation Platform
                 </h1>
 
-                <p className="text-sm sm:text-base text-slate-300/90 max-w-2xl mx-auto leading-relaxed">
+                <p className="relative z-10 text-sm sm:text-base text-slate-300/90 max-w-2xl mx-auto leading-relaxed animate-cascade-2">
                   End-to-end UGC Choice Based Credit System (CBCS) 10-point evaluation platform for university examinations with 2-factor OTP verification and cryptographic QR grade cards.
                 </p>
 
                 {/* Call-to-Actions */}
-                <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
+                <div className="relative z-10 flex flex-wrap items-center justify-center gap-3.5 pt-2 animate-cascade-3">
                   <button
                     onClick={() => { setAuthFlowStep('login'); setCurrentView('auth_portal'); }}
-                    className="btn-luxury px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white text-sm font-bold shadow-glow-brand transition-all flex items-center gap-2.5"
+                    className="btn-luxury px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white text-sm font-bold shadow-glow-brand transition-all flex items-center gap-2.5 font-display"
                   >
                     <span>Launch Examination Portal</span>
                     <Icons.ArrowRight />
@@ -4373,37 +4637,39 @@
 
                   <button
                     onClick={() => { setAuthFlowStep('reg_step1'); setCurrentView('auth_portal'); }}
-                    className="btn-luxury px-6 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-200 text-sm font-bold border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-glow-cyan"
+                    className="btn-luxury px-6 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-200 text-sm font-bold border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-glow-cyan font-display"
                   >
                     Register Account (2FA)
                   </button>
 
                   <button
                     onClick={() => setShowAdminConsoleModal(true)}
-                    className="btn-luxury px-5 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-200 text-sm font-bold border border-amber-500/30 hover:border-amber-400 transition-all flex items-center gap-2 shadow-glow-amber"
+                    className="btn-luxury px-5 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-200 text-sm font-bold border border-amber-500/30 hover:border-amber-400 transition-all flex items-center gap-2 shadow-glow-amber font-display"
                   >
                     <Icons.Key />
                     <span>Administrative Console</span>
                   </button>
                 </div>
 
-                {/* 3 Colorful System Metric Feature Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-8 max-w-4xl mx-auto text-left">
+                {/* 3 Colorful System Metric Feature Cards with Animated Stat Counters & Staggered Cascade */}
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-5 pt-8 max-w-4xl mx-auto text-left">
                   
                   {/* Metric 1: UGC CBCS 10-Point (Amber / Gold) */}
-                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-amber-950/25 border border-amber-500/30 shadow-lg hover:border-amber-400/60 hover:shadow-glow-amber transition-all transform hover:-translate-y-1.5">
+                  <div className="animate-cascade-1 glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-amber-950/25 border border-amber-500/30 shadow-lg hover:border-amber-400/60 hover:shadow-glow-amber transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-amber-300 font-bold uppercase tracking-wider">UGC CBCS Scale</span>
-                      <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-mono">10.0 SCALE</span>
+                      <span className="text-xs text-amber-300 font-bold uppercase tracking-wider font-display">UGC CBCS Scale</span>
+                      <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-mono">
+                        <AnimatedStatCounter target={10.0} decimals={1} suffix=" SCALE" />
+                      </span>
                     </div>
                     <div className="text-2xl font-black text-amber-100 mt-2 font-mono hero-gradient-amber">10-Point Formula</div>
                     <div className="text-[11px] text-amber-300/80 mt-1 font-medium">Automated SGPA & Grade Point Computation</div>
                   </div>
 
                   {/* Metric 2: Cryptographic Authenticity (Cyber Cyan & Indigo) */}
-                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-cyan-950/25 border border-cyan-500/30 shadow-lg hover:border-cyan-400/60 hover:shadow-glow-cyan transition-all transform hover:-translate-y-1.5">
+                  <div className="animate-cascade-2 glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-cyan-950/25 border border-cyan-500/30 shadow-lg hover:border-cyan-400/60 hover:shadow-glow-cyan transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-cyan-300 font-bold uppercase tracking-wider">Authenticity Verification</span>
+                      <span className="text-xs text-cyan-300 font-bold uppercase tracking-wider font-display">Authenticity Verification</span>
                       <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-mono">SHA-256</span>
                     </div>
                     <div className="text-2xl font-black text-cyan-100 mt-2 font-mono hero-gradient-purple">Cryptographic QR</div>
@@ -4411,12 +4677,12 @@
                   </div>
 
                   {/* Metric 3: Executive Leadership (Emerald & Purple) */}
-                  <div className="glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-emerald-950/25 border border-emerald-500/30 shadow-lg hover:border-emerald-400/60 hover:shadow-glow-emerald transition-all transform hover:-translate-y-1.5">
+                  <div className="animate-cascade-3 glass-card-interactive p-6 rounded-2xl bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-emerald-950/25 border border-emerald-500/30 shadow-lg hover:border-emerald-400/60 hover:shadow-glow-emerald transition-all transform hover:-translate-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-emerald-300 font-bold uppercase tracking-wider">Lead Administrators</span>
+                      <span className="text-xs text-emerald-300 font-bold uppercase tracking-wider font-display">Lead Administrators</span>
                       <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono">DIRECTORATE</span>
                     </div>
-                    <div className="text-lg font-black text-emerald-100 mt-2 hero-gradient-emerald">Vivek & Shashank</div>
+                    <div className="text-lg font-black text-emerald-100 mt-2 hero-gradient-emerald font-display">Vivek & Shashank</div>
                     <div className="text-[11px] text-emerald-300/80 mt-1 font-medium">Examination Control Directorate</div>
                   </div>
 
@@ -4953,20 +5219,30 @@
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="glass-card p-4 rounded-xl border border-slate-800">
-                        <div className="text-xs text-slate-400 font-medium">Cumulative Semester SGPA</div>
-                        <div className="text-2xl font-bold text-slate-100 mt-1 font-mono">9.64 / 10.0</div>
-                        <div className="text-[11px] text-emerald-400 mt-1">UGC 10-Point Scale Equivalent</div>
+                      <div className="animate-cascade-1 glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-emerald-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display">Cumulative Semester SGPA</div>
+                        <div className="text-2xl font-black text-slate-100 mt-1 font-mono flex items-center gap-1.5">
+                          <span className="hero-gradient-emerald">
+                            <AnimatedStatCounter target={9.64} decimals={2} />
+                          </span>
+                          <span className="text-sm text-slate-500 font-sans font-semibold">/ 10.0</span>
+                        </div>
+                        <div className="text-[11px] text-emerald-400 mt-1 font-medium">UGC 10-Point Scale Equivalent</div>
                       </div>
-                      <div className="glass-card p-4 rounded-xl border border-slate-800">
-                        <div className="text-xs text-slate-400 font-medium">Lead Administrators</div>
-                        <div className="text-base font-bold text-slate-200 mt-1">Vivek Kumar & Banda Shashank</div>
+                      <div className="animate-cascade-2 glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-brand-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display">Lead Administrators</div>
+                        <div className="text-base font-bold text-slate-200 mt-1 font-display">Vivek Kumar & Banda Shashank</div>
                         <div className="text-[11px] text-slate-400 mt-1">Examination Control Directorate</div>
                       </div>
-                      <div className="glass-card p-4 rounded-xl border border-slate-800">
-                        <div className="text-xs text-slate-400 font-medium">Scheduled Test Sessions</div>
-                        <div className="text-2xl font-bold text-brand-400 mt-1 font-mono">{exams.length} Active</div>
-                        <div className="text-[11px] text-slate-400 mt-1">Real-time Timed Engine</div>
+                      <div className="animate-cascade-3 glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-cyan-500/40 transition-all">
+                        <div className="text-xs text-slate-400 font-medium font-display">Scheduled Test Sessions</div>
+                        <div className="text-2xl font-black text-cyan-400 mt-1 font-mono flex items-center gap-1.5">
+                          <span className="hero-gradient-text">
+                            <AnimatedStatCounter target={exams.length} decimals={0} />
+                          </span>
+                          <span className="text-sm text-slate-400 font-sans font-semibold">Active</span>
+                        </div>
+                        <div className="text-[11px] text-cyan-400/80 mt-1 font-medium">Real-time Timed Engine</div>
                       </div>
                     </div>
 
