@@ -3082,6 +3082,13 @@
       const [studioActiveTab, setStudioActiveTab] = useState('MARKS_INPUT'); // 'TEMPLATE_DESIGN' | 'MARKS_INPUT'
 
       // Institutional Support Desk, Feedback & Grievances State
+      const getApiBase = () => {
+        if (typeof window !== 'undefined' && window.location && window.location.protocol && window.location.protocol.startsWith('http')) {
+          return window.location.origin;
+        }
+        return 'http://127.0.0.1:5000';
+      };
+
       const [supportQueries, setSupportQueries] = useState(() => {
         try {
           const saved = localStorage.getItem('credgen_support_queries_v1');
@@ -3099,7 +3106,7 @@
       // Fetch latest queries from SQLite backend on initial mount
       const fetchSupportQueriesFromApi = async () => {
         try {
-          const res = await fetch('http://127.0.0.1:5000/api/support');
+          const res = await fetch(`${getApiBase()}/api/support`);
           if (res.ok) {
             const data = await res.json();
             if (data.success && Array.isArray(data.queries) && data.queries.length > 0) {
@@ -3170,7 +3177,7 @@
         setSupportQueries(prev => [newTicket, ...prev]);
 
         try {
-          const res = await fetch('http://127.0.0.1:5000/api/support', {
+          const res = await fetch(`${getApiBase()}/api/support`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newTicket)
@@ -3221,7 +3228,7 @@
         }
 
         try {
-          await fetch(`http://127.0.0.1:5000/api/support/${ticketId}/status`, {
+          await fetch(`${getApiBase()}/api/support/${ticketId}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3245,7 +3252,7 @@
         }
 
         try {
-          await fetch(`http://127.0.0.1:5000/api/support/${ticketId}`, {
+          await fetch(`${getApiBase()}/api/support/${ticketId}`, {
             method: 'DELETE'
           });
         } catch(err) {

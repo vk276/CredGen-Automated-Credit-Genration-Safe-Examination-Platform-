@@ -16,9 +16,11 @@ import random
 import hashlib
 import urllib.parse
 import urllib.request
+import threading
+import mimetypes
 from datetime import datetime
 
-PORT = 5000
+DEFAULT_PORTS = [5173, 5000]
 DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credgen.db")
 
 # UGC Choice Based Credit System (CBCS) 10-Point Conversion Scale
@@ -458,11 +460,65 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
+        # 0. Static Web Assets & Single-Page Application Router (Port 5173 / 5000)
+        if not path.startswith('/api/'):
+            clean_path = path.lstrip('/')
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            if not clean_path or clean_path == '' or clean_path == 'index.html':
+                filepath = os.path.join(base_dir, 'index.html')
+            else:
+                safe_rel = os.path.normpath(clean_path).lstrip(os.sep).lstrip('/')
+                filepath = os.path.join(base_dir, safe_rel)
+
+            if os.path.isfile(filepath):
+                ext = os.path.splitext(filepath)[1].lower()
+                if ext in ['.db', '.py', '.log', '.git', '.env']:
+                    self.send_json({"error": "Access denied to protected file"}, 403)
+                    return
+
+                mime, _ = mimetypes.guess_type(filepath)
+                if ext in ['.jsx', '.js']:
+                    mime = 'application/javascript; charset=utf-8'
+                elif ext == '.html':
+                    mime = 'text/html; charset=utf-8'
+                elif ext == '.css':
+                    mime = 'text/css; charset=utf-8'
+                elif not mime:
+                    mime = 'application/octet-stream'
+
+                try:
+                    with open(filepath, 'rb') as f:
+                        data = f.read()
+                    self.send_response(200)
+                    self.send_header('Content-Type', mime)
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Cache-Control', 'no-cache')
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                except Exception as ex:
+                    self.send_json({"error": f"Failed to read static file: {str(ex)}"}, 500)
+                    return
+            else:
+                # SPA Fallback to index.html
+                index_path = os.path.join(base_dir, 'index.html')
+                if os.path.isfile(index_path):
+                    with open(index_path, 'rb') as f:
+                        data = f.read()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+
         # 1. Health & Status
         if path == '/api/health':
             self.send_json({
                 "status": "ONLINE",
-                "service": "CredGen Enterprise Academic API",
+                "service": "CredGen Enterprise Academic API & Web Application",
                 "database": "SQLite3 (credgen.db)",
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             })
@@ -1219,19 +1275,37 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
+def run_server_instance(port):
+    server_address = ('', port)
+    try:
+        with ThreadedTCPServer(server_address, CredGenApiServer) as httpd:
+            print(f"[CREDGEN-SERVER] Active on http://localhost:{port}")
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"[CREDGEN-SERVER] Warning: Could not bind port {port} ({e})")
+
 def main():
     init_database()
     print("=" * 70)
     print(f"[CREDGEN-BACKEND] SQLite Relational Storage: {DB_FILE}")
-    print(f"[CREDGEN-BACKEND] REST API Gateway listening on http://localhost:{PORT}")
+    print(f"[CREDGEN-BACKEND] Full-Stack Server & API: http://localhost:5173 & http://localhost:5000")
     print("=" * 70)
-    
-    server_address = ('', PORT)
-    with ThreadedTCPServer(server_address, CredGenApiServer) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\n[CREDGEN-BACKEND] Server terminated gracefully.")
+
+    target_ports = DEFAULT_PORTS
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        target_ports = [int(sys.argv[1])]
+
+    threads = []
+    for port in target_ports:
+        t = threading.Thread(target=run_server_instance, args=(port,), daemon=True)
+        t.start()
+        threads.append(t)
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n[CREDGEN-SERVER] Server terminated gracefully.")
 
 if __name__ == '__main__':
     main()
