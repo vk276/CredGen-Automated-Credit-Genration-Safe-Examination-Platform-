@@ -117,19 +117,21 @@ export const AppProvider = ({ children }) => {
   };
 
   // Auth Functions: Strict Password Checking
-  const loginUser = (emailOrPhone, password, role) => {
-    const matched = users.find(u => 
-      (u.email.toLowerCase() === emailOrPhone.toLowerCase() || u.phone === emailOrPhone) &&
-      u.role === role
-    );
+  const loginUser = (identifier, password, role) => {
+    const ident = (identifier || '').trim().toLowerCase();
+    const matched = users.find(u => {
+      const matchEmail = (u.email || '').toLowerCase() === ident;
+      const matchPhone = (u.phone || '').replace(/\s+/g, '') === ident.replace(/\s+/g, '');
+      const matchRoll = (u.rollNo || '').toLowerCase() === ident;
+      const matchFaculty = (u.facultyId || '').toLowerCase() === ident;
+      return (matchEmail || matchPhone || matchRoll || matchFaculty) && u.role === role;
+    });
 
     if (!matched) {
-      return { success: false, message: 'No account found matching this email/phone and role.' };
+      return { success: false, message: 'No account found matching this identifier and role.' };
     }
 
-    // Verify password (matches user password or standard demo password)
-    const validPasswords = [matched.password, 'admin123', 'teacher123', 'student123', '12345678', 'vivek@admin123', 'shashank@admin123'];
-    if (matched.password && !validPasswords.includes(password)) {
+    if (matched.password !== password) {
       return { success: false, message: 'Incorrect password! Please enter the correct password.' };
     }
 

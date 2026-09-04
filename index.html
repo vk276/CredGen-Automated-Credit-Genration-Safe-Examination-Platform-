@@ -811,7 +811,7 @@
         name: 'Vivek Kumar',
         email: 'vivek.admin@credgen.mmdu.ac.in',
         phone: '+91 94160 12345',
-        password: 'vivek@admin123',
+        password: 'Vivek@Admin2026#',
         role: 'ADMIN',
         rollNo: '11242634',
         department: 'Examination Control Board & CSE',
@@ -825,7 +825,7 @@
         name: 'Banda Shashank',
         email: 'shashank.admin@credgen.mmdu.ac.in',
         phone: '+91 94160 54321',
-        password: 'shashank@admin123',
+        password: 'Shashank@Admin2026#',
         role: 'ADMIN',
         rollNo: '11242656',
         department: 'Examination Control Board & CSE',
@@ -839,7 +839,7 @@
         name: 'Dr. Vinsha Sumra',
         email: 'vinsha.sumra@mmdu.ac.in',
         phone: '+91 98765 43210',
-        password: 'teacher@123',
+        password: 'Teacher@2026#',
         role: 'TEACHER',
         department: 'Computer Science & Engineering',
         facultyId: 'MMEC-CSE-101',
@@ -853,7 +853,7 @@
         name: 'Rahul Verma',
         email: 'rahul.verma@student.mmdu.ac.in',
         phone: '+91 98980 11223',
-        password: 'student@123',
+        password: 'Student@2026#',
         role: 'STUDENT',
         rollNo: '11242601',
         section: 'C',
@@ -2944,7 +2944,15 @@
 
     function CredGenApp() {
       const [users, setUsers] = useState(INITIAL_USERS);
-      const [currentUser, setCurrentUser] = useState(null); // Starts on Homepage
+      // Session Persistence via localStorage
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const saved = localStorage.getItem('credgen_auth_user');
+          return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+          return null;
+        }
+      });
       const [questionBank, setQuestionBank] = useState(INITIAL_QUESTION_BANK);
       const [exams, setExams] = useState(INITIAL_EXAMS);
       const [currentView, setCurrentView] = useState('landing');
@@ -2956,19 +2964,23 @@
       // Institutional Administrative Access Modal
       const [showAdminConsoleModal, setShowAdminConsoleModal] = useState(false);
 
-      // Auth Flow State: 'login' | 'reg_step1' | 'reg_step2_email' | 'reg_step3_phone'
+      // Auth Flow State: 'login' | 'reg_step1'
       const [authFlowStep, setAuthFlowStep] = useState('login');
-      const [authRole, setAuthRole] = useState('STUDENT');
-      const [authIdentifier, setAuthIdentifier] = useState('rahul.verma@student.mmdu.ac.in');
-      const [authPass, setAuthPass] = useState('student@123');
+      const [authRole, setAuthRole] = useState('ADMIN');
+      const [authIdentifier, setAuthIdentifier] = useState('');
+      const [authPass, setAuthPass] = useState('');
+      const [showAuthPass, setShowAuthPass] = useState(false);
       const [authError, setAuthError] = useState('');
 
-      // Registration Form Data
-      const [regName, setRegName] = useState('Vivek Kumar');
-      const [regEmail, setRegEmail] = useState('vivek.kumar@mmdu.ac.in');
-      const [regPhone, setRegPhone] = useState('+91 94160 12345');
-      const [regPass, setRegPass] = useState('Vivek@Secure2026');
-      const [regRollOrId, setRegRollOrId] = useState('11242634');
+      // Registration Form Data (Direct E-Commerce & University Portal Signup)
+      const [regName, setRegName] = useState('');
+      const [regEmail, setRegEmail] = useState('');
+      const [regPhone, setRegPhone] = useState('');
+      const [regPass, setRegPass] = useState('');
+      const [regConfirmPass, setRegConfirmPass] = useState('');
+      const [regRollOrId, setRegRollOrId] = useState('');
+      const [regAgreeTerms, setRegAgreeTerms] = useState(true);
+      const [showRegPass, setShowRegPass] = useState(false);
 
       // Step-by-Step OTP State
       const [generatedEmailOtp, setGeneratedEmailOtp] = useState('749210');
@@ -4577,14 +4589,18 @@
         }
       };
 
-      // Institutional Direct Session Activation
+      // Institutional Direct Session Prompt (Password Required - No Bypass)
       const selectInstitutionalSession = (userId) => {
         const target = users.find(u => u.id === userId);
         if (target) {
-          setCurrentUser(target);
-          setCurrentView('dashboard');
           setShowAdminConsoleModal(false);
-          triggerToast('Session Initialized', `Active institutional context: ${target.name} (${target.role}).`);
+          setAuthRole(target.role);
+          setAuthIdentifier(target.rollNo || target.facultyId || target.email);
+          setAuthPass('');
+          setAuthError('');
+          setAuthFlowStep('login');
+          setCurrentView('auth_portal');
+          triggerToast('Authentication Required', `Selected account: ${target.name}. Enter institutional password to verify.`);
         }
       };
 
@@ -4603,36 +4619,138 @@
         window.__credGenState = { currentUser, currentView, marksheetRecords, supportQueries };
       }, [currentUser, currentView, marksheetRecords, supportQueries]);
 
-      // Standard Login with Password
+      // Standard Login with Exact Password Verification
       const handleLogin = (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
         setAuthError('');
 
-        const target = users.find(u => 
-          (u.email.toLowerCase() === authIdentifier.trim().toLowerCase() || u.phone === authIdentifier.trim()) &&
-          u.role === authRole
-        );
+        const ident = (authIdentifier || '').trim().toLowerCase();
+        const rawPass = (authPass || '').trim();
 
-        if (!target) {
-          setAuthError(`No account registered with identifier "${authIdentifier}" under role "${authRole}".`);
+        if (!ident) {
+          setAuthError('Please enter your institutional email, mobile number, roll number, or faculty ID.');
+          return;
+        }
+        if (!rawPass) {
+          setAuthError('Please enter your account password.');
           return;
         }
 
-        const validPasswords = [target.password, 'admin123', 'teacher123', 'student123', '12345678', 'vivek@admin123', 'shashank@admin123'];
-        if (target.password && !validPasswords.includes(authPass)) {
+        const target = users.find(u => {
+          const matchEmail = (u.email || '').toLowerCase() === ident;
+          const matchPhone = (u.phone || '').replace(/\s+/g, '') === ident.replace(/\s+/g, '');
+          const matchRoll = (u.rollNo || '').toLowerCase() === ident;
+          const matchFaculty = (u.facultyId || '').toLowerCase() === ident;
+          return (matchEmail || matchPhone || matchRoll || matchFaculty);
+        });
+
+        if (!target) {
+          setAuthError(`No account registered with identifier "${authIdentifier}". Please check your credentials or register.`);
+          return;
+        }
+
+        if (target.role !== authRole) {
+          setAuthError(`Account found, but role mismatch: This account is registered as ${target.role}. Please select the ${target.role} role tab.`);
+          return;
+        }
+
+        if (target.password !== rawPass) {
           setAuthError(`Authentication failed: Incorrect password entered for ${target.name}.`);
           return;
         }
 
         setCurrentUser(target);
+        try {
+          localStorage.setItem('credgen_auth_user', JSON.stringify(target));
+        } catch (err) {}
         setCurrentView('dashboard');
         triggerToast('Authentication Successful', `Welcome, ${target.name}. Session active.`);
       };
 
       const handleLogout = () => {
         setCurrentUser(null);
+        try {
+          localStorage.removeItem('credgen_auth_user');
+        } catch (err) {}
         setCurrentView('landing');
         triggerToast('Session Locked', 'Signed out safely. Returned to CredGen homepage.');
+      };
+
+      // Direct E-Commerce & Institutional Registration Handler
+      const handleDirectRegister = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        setAuthError('');
+
+        if (!regName.trim() || !regEmail.trim() || !regPhone.trim() || !regPass.trim()) {
+          setAuthError('Please complete all mandatory identity fields.');
+          return;
+        }
+
+        if (regPass.length < 8) {
+          setAuthError('Password must be at least 8 characters in length.');
+          return;
+        }
+
+        if (regConfirmPass && regPass !== regConfirmPass) {
+          setAuthError('Passwords do not match. Please re-type and verify.');
+          return;
+        }
+
+        const existing = users.find(u => 
+          u.email.toLowerCase() === regEmail.trim().toLowerCase() ||
+          (regRollOrId && (u.rollNo === regRollOrId.trim() || u.facultyId === regRollOrId.trim()))
+        );
+
+        if (existing) {
+          setAuthError(`An account with this email or ID already exists (${existing.name}). Please sign in.`);
+          return;
+        }
+
+        const newUser = {
+          id: `usr_${Date.now()}`,
+          name: regName.trim(),
+          email: regEmail.trim().toLowerCase(),
+          phone: regPhone.trim(),
+          password: regPass.trim(),
+          role: authRole,
+          department: 'Computer Science & Engineering',
+          institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
+          avatar: '',
+          rollNo: authRole === 'STUDENT' ? (regRollOrId.trim() || '11242699') : undefined,
+          facultyId: authRole === 'TEACHER' ? (regRollOrId.trim() || 'MMEC-FAC-99') : undefined,
+          verified: true,
+          status: 'ACTIVE'
+        };
+
+        const updatedUsers = [newUser, ...users];
+        setUsers(updatedUsers);
+        setCurrentUser(newUser);
+        try {
+          localStorage.setItem('credgen_auth_user', JSON.stringify(newUser));
+        } catch (err) {}
+        setCurrentView('dashboard');
+        triggerToast('Account Registered & Verified', `Welcome to CredGen, ${newUser.name}. Your session is active.`);
+
+        // Sync with SQLite backend if online
+        try {
+          fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: newUser.name,
+              email: newUser.email,
+              phone: newUser.phone,
+              password: newUser.password,
+              role: newUser.role,
+              department: newUser.department,
+              institution: newUser.institution,
+              roll_no: newUser.rollNo,
+              faculty_id: newUser.facultyId
+            })
+          }).catch(() => {});
+        } catch (err) {}
+
+        if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
       };
 
       // Step 1: Start 2FA Registration
@@ -5626,9 +5744,7 @@
                           type="button"
                           onClick={() => {
                             setAuthRole(r);
-                            if (r === 'ADMIN') { setAuthIdentifier('vivek.admin@credgen.mmdu.ac.in'); setAuthPass('vivek@admin123'); }
-                            else if (r === 'TEACHER') { setAuthIdentifier('vinsha.sumra@mmdu.ac.in'); setAuthPass('teacher@123'); }
-                            else { setAuthIdentifier('rahul.verma@student.mmdu.ac.in'); setAuthPass('student@123'); }
+                            setAuthError('');
                           }}
                           className={`p-2.5 rounded-lg border text-center font-medium transition-all ${
                             authRole === r ? 'bg-brand-600/20 border-brand-500 text-brand-200 ring-1 ring-brand-500' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -5645,50 +5761,178 @@
                 {authFlowStep === 'login' && (
                   <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
                     <div>
-                      <label className="block text-slate-300 font-medium mb-1">Email Address or Mobile Number</label>
-                      <input type="text" required value={authIdentifier} onChange={e => setAuthIdentifier(e.target.value)} className="w-full p-2.5 rounded-lg form-input" />
+                      <label className="block text-slate-300 font-medium mb-1">Institutional Email, Roll No, or Faculty ID</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={authRole === 'ADMIN' ? '11242634 or vivek.admin@credgen.mmdu.ac.in' : authRole === 'TEACHER' ? 'MMEC-CSE-101 or vinsha.sumra@mmdu.ac.in' : '11242601 or rahul.verma@student.mmdu.ac.in'}
+                        value={authIdentifier}
+                        onChange={e => setAuthIdentifier(e.target.value)}
+                        className="w-full p-2.5 rounded-lg form-input"
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 font-medium mb-1">Password</label>
-                      <input type="password" required value={authPass} onChange={e => setAuthPass(e.target.value)} className="w-full p-2.5 rounded-lg form-input" />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-slate-300 font-medium">Account Password</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthPass(!showAuthPass)}
+                          className="text-[11px] text-brand-400 hover:text-brand-300 transition-colors"
+                        >
+                          {showAuthPass ? 'Hide Password' : 'Show Password'}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showAuthPass ? "text" : "password"}
+                          required
+                          placeholder="Enter your confidential password"
+                          value={authPass}
+                          onChange={e => setAuthPass(e.target.value)}
+                          className="w-full p-2.5 rounded-lg form-input pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthPass(!showAuthPass)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs"
+                        >
+                          {showAuthPass ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
                     </div>
 
                     <button type="submit" className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-glow-brand flex items-center justify-center gap-2">
                       <Icons.Lock />
                       <span>Authenticate & Sign In</span>
                     </button>
+
+                    {/* Institutional Verified Credentials Reference Card */}
+                    <div className="mt-4 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] space-y-2">
+                      <div className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Icons.ShieldCheck />
+                        <span>Official Account Directory & Initial Passwords</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5 font-mono text-[10px] text-slate-300">
+                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
+                          <span>Admin: Vivek Kumar (11242634)</span>
+                          <span className="text-amber-400 font-bold">Vivek@Admin2026#</span>
+                        </div>
+                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
+                          <span>Admin: Banda Shashank (11242656)</span>
+                          <span className="text-indigo-400 font-bold">Shashank@Admin2026#</span>
+                        </div>
+                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
+                          <span>Faculty: Dr. Vinsha Sumra (MMEC-CSE-101)</span>
+                          <span className="text-purple-400 font-bold">Teacher@2026#</span>
+                        </div>
+                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
+                          <span>Student: Rahul Verma (11242601)</span>
+                          <span className="text-emerald-400 font-bold">Student@2026#</span>
+                        </div>
+                      </div>
+                    </div>
                   </form>
                 )}
 
-                {/* REGISTER STEP 1 */}
+                {/* REGISTER STEP 1 (DIRECT E-COMMERCE / UNIVERSITY ONBOARDING) */}
                 {authFlowStep === 'reg_step1' && (
-                  <form onSubmit={handleStartRegistration} className="space-y-3 text-xs">
+                  <form onSubmit={handleDirectRegister} className="space-y-3 text-xs">
                     <div>
                       <label className="block text-slate-300 font-medium mb-1">Full Legal Name</label>
-                      <input type="text" required value={regName} onChange={e => setRegName(e.target.value)} className="w-full p-2.5 rounded-lg form-input" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Vivek Kumar"
+                        value={regName}
+                        onChange={e => setRegName(e.target.value)}
+                        className="w-full p-2.5 rounded-lg form-input"
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-slate-300 font-medium mb-1">Gmail Address</label>
-                        <input type="email" required value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-2 rounded-lg form-input" />
+                        <label className="block text-slate-300 font-medium mb-1">Email Address</label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="name@mmdu.ac.in"
+                          value={regEmail}
+                          onChange={e => setRegEmail(e.target.value)}
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
                       </div>
                       <div>
-                        <label className="block text-slate-300 font-medium mb-1">Mobile Phone (+91)</label>
-                        <input type="tel" required value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full p-2 rounded-lg form-input" />
+                        <label className="block text-slate-300 font-medium mb-1">Mobile (+91)</label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="+91 94160 12345"
+                          value={regPhone}
+                          onChange={e => setRegPhone(e.target.value)}
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-slate-300 font-medium mb-1">Password</label>
-                      <input type="password" required value={regPass} onChange={e => setRegPass(e.target.value)} className="w-full p-2.5 rounded-lg form-input" />
+                      <label className="block text-slate-300 font-medium mb-1">{authRole === 'STUDENT' ? 'University Roll Number' : authRole === 'TEACHER' ? 'Faculty ID' : 'Administrative Secret Key'}</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={authRole === 'STUDENT' ? '11242634' : 'MMEC-CSE-101'}
+                        value={regRollOrId}
+                        onChange={e => setRegRollOrId(e.target.value)}
+                        className="w-full p-2.5 rounded-lg form-input font-mono"
+                      />
                     </div>
-                    <div>
-                      <label className="block text-slate-300 font-medium mb-1">{authRole === 'STUDENT' ? 'Roll Number' : authRole === 'TEACHER' ? 'Faculty ID' : 'Administrative Key'}</label>
-                      <input type="text" value={regRollOrId} onChange={e => setRegRollOrId(e.target.value)} className="w-full p-2.5 rounded-lg form-input" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Create Password</label>
+                        <input
+                          type={showRegPass ? "text" : "password"}
+                          required
+                          placeholder="Min 8 chars"
+                          value={regPass}
+                          onChange={e => setRegPass(e.target.value)}
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-medium mb-1">Confirm Password</label>
+                        <input
+                          type={showRegPass ? "text" : "password"}
+                          required
+                          placeholder="Confirm password"
+                          value={regConfirmPass}
+                          onChange={e => setRegConfirmPass(e.target.value)}
+                          className="w-full p-2.5 rounded-lg form-input"
+                        />
+                      </div>
                     </div>
-                    <button type="submit" className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-glow-brand flex items-center justify-center gap-2 mt-2">
-                      <span>Proceed to Gmail OTP Verification</span>
-                      <Icons.ArrowRight />
+                    <div className="flex items-center justify-between pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-400">
+                        <input
+                          type="checkbox"
+                          checked={regAgreeTerms}
+                          onChange={e => setRegAgreeTerms(e.target.checked)}
+                          className="rounded border-slate-700 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span>I agree to MMDU academic regulations & UGC CBCS policies</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPass(!showRegPass)}
+                        className="text-[11px] text-brand-400 hover:text-brand-300"
+                      >
+                        {showRegPass ? 'Hide Passwords' : 'Show Passwords'}
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!regAgreeTerms}
+                      className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-semibold text-xs shadow-glow-brand flex items-center justify-center gap-2 mt-2"
+                    >
+                      <Icons.CheckCircle />
+                      <span>Complete Registration & Launch Portal</span>
                     </button>
                   </form>
                 )}

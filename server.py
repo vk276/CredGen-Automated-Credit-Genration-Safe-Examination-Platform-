@@ -196,12 +196,18 @@ def init_database():
         INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
-            ('usr_admin_vivek', 'Vivek Kumar', 'vivek.admin@credgen.mmdu.ac.in', '+91 94160 12345', 'vivek@admin123', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', None, '', 'ACTIVE'),
-            ('usr_admin_shashank', 'Banda Shashank', 'shashank.admin@credgen.mmdu.ac.in', '+91 94160 54321', 'shashank@admin123', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief System Architect & Exam Controller', '11242656', None, '', 'ACTIVE'),
-            ('usr_teacher_1', 'Dr. Vinsha Sumra', 'vinsha.sumra@mmdu.ac.in', '+91 98765 43210', 'teacher@123', 'TEACHER', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Professor & Project Guide', None, 'MMEC-CSE-101', '', 'ACTIVE'),
-            ('usr_student_rahul', 'Rahul Verma', 'rahul.verma@student.mmdu.ac.in', '+91 98980 11223', 'student@123', 'STUDENT', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Student Candidate', '11242601', None, '', 'ACTIVE')
+            ('usr_admin_vivek', 'Vivek Kumar', 'vivek.admin@credgen.mmdu.ac.in', '+91 94160 12345', 'Vivek@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', None, '', 'ACTIVE'),
+            ('usr_admin_shashank', 'Banda Shashank', 'shashank.admin@credgen.mmdu.ac.in', '+91 94160 54321', 'Shashank@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief System Architect & Exam Controller', '11242656', None, '', 'ACTIVE'),
+            ('usr_teacher_1', 'Dr. Vinsha Sumra', 'vinsha.sumra@mmdu.ac.in', '+91 98765 43210', 'Teacher@2026#', 'TEACHER', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Professor & Project Guide', None, 'MMEC-CSE-101', '', 'ACTIVE'),
+            ('usr_student_rahul', 'Rahul Verma', 'rahul.verma@student.mmdu.ac.in', '+91 98980 11223', 'Student@2026#', 'STUDENT', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Student Candidate', '11242601', None, '', 'ACTIVE')
         ])
         print("[DB-INIT] Default institutional users initialized.")
+
+    # Synchronize default credentials on startup
+    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_vivek'", ('Vivek@Admin2026#',))
+    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_shashank'", ('Shashank@Admin2026#',))
+    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_teacher_1'", ('Teacher@2026#',))
+    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_student_rahul'", ('Student@2026#',))
 
     cur.execute("SELECT COUNT(*) as count FROM questions")
     if cur.fetchone()["count"] == 0:
@@ -749,31 +755,94 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
 
         # 3. User Login
         if path == '/api/auth/login':
-            identifier = body.get('identifier', '').strip().lower()
+            identifier = body.get('identifier', '').strip()
             password = body.get('password', '').strip()
-            role = body.get('role', 'ADMIN').upper()
+            role = body.get('role')
+            if role:
+                role = role.upper()
 
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("""
-            SELECT * FROM users 
-            WHERE (LOWER(email) = ? OR phone = ?) AND role = ? AND status = 'ACTIVE'
-            """, (identifier, identifier, role))
+            # Allow identifier to match email, phone, roll_no, or faculty_id
+            if role:
+                cur.execute("""
+                SELECT * FROM users 
+                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
+                  AND role = ? AND status = 'ACTIVE'
+                """, (identifier, identifier, identifier, identifier, role))
+            else:
+                cur.execute("""
+                SELECT * FROM users 
+                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
+                  AND status = 'ACTIVE'
+                """, (identifier, identifier, identifier, identifier))
             user = cur.fetchone()
             conn.close()
 
             if not user:
-                self.send_json({"success": False, "message": "User account not found or deactivated."}, 401)
+                self.send_json({"success": False, "message": "No active account found with the provided identifier."}, 401)
                 return
 
             u = dict(user)
-            valid_passwords = [u["password"], "admin123", "teacher123", "student123", "vivek@admin123", "shashank@admin123"]
-            if password not in valid_passwords:
-                self.send_json({"success": False, "message": "Incorrect password entered."}, 401)
+            if u["password"] != password:
+                self.send_json({"success": False, "message": "Authentication failed: Incorrect password entered."}, 401)
                 return
 
             del u["password"]
-            self.send_json({"success": True, "message": "Authentication successful.", "user": u})
+            print(f"[AUTH-LOGIN] Session authenticated for {u['name']} ({u['role']})")
+            self.send_json({"success": True, "message": f"Welcome back, {u['name']}.", "user": u})
+            return
+
+        # 3b. User Registration (E-Commerce & University Portal Signup)
+        if path == '/api/auth/register':
+            name = body.get('name', '').strip()
+            email = body.get('email', '').strip().lower()
+            phone = body.get('phone', '').strip()
+            password = body.get('password', '').strip()
+            role = body.get('role', 'STUDENT').upper()
+            department = body.get('department', 'Computer Science & Engineering').strip()
+            institution = body.get('institution', 'Maharishi Markandeshwar (Deemed to be University), Mullana').strip()
+            roll_no = body.get('rollNo') or body.get('roll_no')
+            faculty_id = body.get('facultyId') or body.get('faculty_id')
+
+            if not name or not email or not password:
+                self.send_json({"success": False, "message": "Full legal name, email address, and password are required."}, 400)
+                return
+
+            if len(password) < 6:
+                self.send_json({"success": False, "message": "Password must be at least 6 characters long."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM users WHERE LOWER(email) = ?", (email,))
+            if cur.fetchone():
+                conn.close()
+                self.send_json({"success": False, "message": f"An account with email '{email}' already exists."}, 409)
+                return
+
+            if roll_no:
+                cur.execute("SELECT id FROM users WHERE roll_no = ?", (roll_no,))
+                if cur.fetchone():
+                    conn.close()
+                    self.send_json({"success": False, "message": f"An account with Roll Number '{roll_no}' already exists."}, 409)
+                    return
+
+            user_id = f"usr_{role.lower()}_{int(time.time())}_{random.randint(100, 999)}"
+            designation = 'Student Candidate' if role == 'STUDENT' else ('Faculty Member' if role == 'TEACHER' else 'Department Administrator')
+            
+            cur.execute("""
+            INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'ACTIVE')
+            """, (user_id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id))
+            conn.commit()
+
+            cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status, created_at FROM users WHERE id = ?", (user_id,))
+            new_user = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[AUTH-REGISTER] Created new {role} user: {name} ({email}) [ID: {user_id}]")
+            self.send_json({"success": True, "message": "Account registered successfully.", "user": new_user}, 201)
             return
 
         # 4. Avatar Upload
