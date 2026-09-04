@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "echo 'Static production bundle ready'",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:railway": "railway up"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
