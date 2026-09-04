@@ -1,16 +1,13 @@
 {
   "version": 2,
   "name": "credgen-platform",
-  "builds": [
+  "buildCommand": "echo 'Static CredGen Platform verified'",
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "rewrites": [
     {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

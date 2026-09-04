@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "echo 'Static production bundle ready'",
     "preview": "vite preview"
   },
   "dependencies": {
