@@ -1292,7 +1292,10 @@ def main():
     print("=" * 70)
 
     target_ports = DEFAULT_PORTS
-    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+    env_port = os.environ.get("PORT")
+    if env_port and env_port.isdigit():
+        target_ports = [int(env_port)]
+    elif len(sys.argv) > 1 and sys.argv[1].isdigit():
         target_ports = [int(sys.argv[1])]
 
     threads = []
