@@ -845,6 +845,99 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "message": "Account registered successfully.", "user": new_user}, 201)
             return
 
+        # 3c. AI Academic Performance Insights Engine
+        if path == '/api/ai/performance-insights':
+            student_name = body.get('studentName', 'Student Candidate')
+            roll_no = body.get('rollNo', '11242601')
+            courses = body.get('courses', [])
+
+            if not courses:
+                courses = [
+                    {"code": "CS-306", "title": "Java Programming", "credits": 4.0, "total": 86.0, "letterGrade": "A+", "gradePoint": 9},
+                    {"code": "CS-308", "title": "Cloud Computing", "credits": 4.0, "total": 82.0, "letterGrade": "A+", "gradePoint": 9},
+                    {"code": "CS-302", "title": "Database Management Systems", "credits": 4.0, "total": 85.0, "letterGrade": "A+", "gradePoint": 9},
+                    {"code": "CS-304", "title": "Design & Analysis of Algorithms", "credits": 4.0, "total": 76.0, "letterGrade": "A", "gradePoint": 8},
+                    {"code": "CS-310", "title": "Big Data Analytics", "credits": 4.0, "total": 64.0, "letterGrade": "B+", "gradePoint": 7},
+                    {"code": "CS-312", "title": "Software Project Management", "credits": 4.0, "total": 68.0, "letterGrade": "B+", "gradePoint": 7}
+                ]
+
+            scored = []
+            total_marks = 0.0
+            total_cr = 0.0
+            total_cp = 0.0
+            for c in courses:
+                cr = float(c.get('credits') or c.get('credit') or 4.0)
+                tot = float(c.get('total') or c.get('marks') or c.get('score') or c.get('percentage') or 75.0)
+                gp = float(c.get('gradePoint') or c.get('grade_point') or 8.0)
+                title = c.get('title') or c.get('name') or c.get('courseName') or c.get('code') or 'Subject'
+                letter_grade = c.get('letterGrade') or c.get('grade') or ('O' if tot>=90 else 'A+' if tot>=80 else 'A' if tot>=70 else 'B+' if tot>=60 else 'B' if tot>=50 else 'P')
+                scored.append({
+                    "code": c.get('code', ''),
+                    "title": title,
+                    "credits": cr,
+                    "marks": tot,
+                    "percentage": round(tot, 1),
+                    "grade": letter_grade,
+                    "gradePoint": gp
+                })
+                total_marks += tot
+                total_cr += cr
+                total_cp += (cr * gp)
+
+            avg_pct = round(total_marks / len(scored), 1) if scored else 78.0
+            sgpa = round(total_cp / total_cr, 2) if total_cr > 0 else 8.0
+
+            scored.sort(key=lambda x: x["percentage"], reverse=True)
+            strengths = [c for c in scored if c["percentage"] >= 75.0] or scored[:2]
+            weaknesses = [c for c in scored if c["percentage"] < 75.0] or scored[-2:]
+
+            weak_names = [w["title"] for w in weaknesses]
+            strong_names = [s["title"] for s in strengths]
+            weak_str = " and ".join(weak_names) if weak_names else "Core Electives"
+            strong_str = " and ".join(strong_names[:2]) if strong_names else "Core Programming Domains"
+
+            overall_desc = "Good performance"
+            if avg_pct >= 90:
+                overall_desc = "Outstanding performance"
+            elif avg_pct >= 80:
+                overall_desc = "Excellent performance"
+            elif avg_pct >= 70:
+                overall_desc = "Good performance"
+            elif avg_pct >= 60:
+                overall_desc = "Above Average performance"
+
+            recommendation = (
+                f"Focus on {weak_str} concepts, particularly distributed storage and processing. "
+                f"Maintaining your current performance in {strong_str} should be a priority."
+            )
+
+            res_payload = {
+                "success": True,
+                "studentName": student_name,
+                "rollNo": roll_no,
+                "overallSummary": f"Overall: {overall_desc} — {avg_pct}%.",
+                "overallPercentage": avg_pct,
+                "sgpa": sgpa,
+                "totalCredits": total_cr,
+                "strengths": [
+                    {"title": s["title"], "code": s["code"], "percentage": s["percentage"], "grade": s["grade"]}
+                    for s in strengths
+                ],
+                "areasForImprovement": [
+                    {"title": w["title"], "code": w["code"], "percentage": w["percentage"], "grade": w["grade"]}
+                    for w in weaknesses
+                ],
+                "recommendation": recommendation,
+                "actionPlan": [
+                    f"Focus on {weak_names[0] if weak_names else 'developing areas'} concepts, particularly distributed storage and processing.",
+                    f"Practice model question sets and architectural diagrams in {weak_names[1] if len(weak_names) > 1 else 'core technical subjects'}.",
+                    f"Maintaining high marks in {strong_names[0] if strong_names else 'Java'} and {strong_names[1] if len(strong_names) > 1 else 'Cloud Computing'} should remain a continuous priority."
+                ],
+                "generatedAt": datetime.now().strftime("%d %b %Y, %H:%M:%S")
+            }
+            self.send_json(res_payload)
+            return
+
         # 4. Avatar Upload
         if path.startswith('/api/users/') and path.endswith('/avatar'):
             user_id = path.split('/')[3]
