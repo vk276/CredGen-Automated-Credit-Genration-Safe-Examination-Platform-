@@ -1345,10 +1345,10 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 def run_server_instance(port):
-    server_address = ('', port)
+    server_address = ('0.0.0.0', port)
     try:
         with ThreadedTCPServer(server_address, CredGenApiServer) as httpd:
-            print(f"[CREDGEN-SERVER] Active on http://localhost:{port}")
+            print(f"[CREDGEN-SERVER] Active on http://0.0.0.0:{port}")
             httpd.serve_forever()
     except Exception as e:
         print(f"[CREDGEN-SERVER] Warning: Could not bind port {port} ({e})")
@@ -1357,16 +1357,17 @@ def main():
     init_database()
     print("=" * 70)
     print(f"[CREDGEN-BACKEND] SQLite Relational Storage: {DB_FILE}")
-    print(f"[CREDGEN-BACKEND] Full-Stack Server & API: http://localhost:5173 & http://localhost:5000")
+    print(f"[CREDGEN-BACKEND] Full-Stack Server & API active on local & cloud ports")
     print("=" * 70)
 
-    target_ports = DEFAULT_PORTS
+    ports_to_bind = [5000, 5173]
     env_port = os.environ.get("PORT")
     if env_port and env_port.isdigit():
-        target_ports = [int(env_port)]
-    elif len(sys.argv) > 1 and sys.argv[1].isdigit():
-        target_ports = [int(sys.argv[1])]
+        ports_to_bind.append(int(env_port))
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        ports_to_bind.append(int(sys.argv[1]))
 
+    target_ports = sorted(list(set(ports_to_bind)))
     threads = []
     for port in target_ports:
         t = threading.Thread(target=run_server_instance, args=(port,), daemon=True)
