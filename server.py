@@ -528,6 +528,17 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def send_json(self, data, status_code=200):
+        if isinstance(data, dict):
+            if "success" in data and "ok" not in data:
+                data["ok"] = data["success"]
+            elif "ok" in data and "success" not in data:
+                data["success"] = data["ok"]
+            if status_code >= 400 and "error" not in data and "message" in data:
+                data["error"] = data["message"]
+            if "target" not in data and "identifier" in data:
+                data["target"] = data["identifier"]
+            if "dev_otp" not in data and "otp_code" in data:
+                data["dev_otp"] = data["otp_code"]
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Connection', 'close')

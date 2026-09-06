@@ -5003,7 +5003,7 @@
           })
           .then(res => res.json())
           .then(data => {
-            if (data && data.ok && data.user) {
+            if (data && (data.ok || data.success) && data.user) {
               setCurrentUser(data.user);
               try {
                 localStorage.setItem('credgen_auth_user', JSON.stringify(data.user));
@@ -5037,7 +5037,7 @@
           });
           const data = await res.json();
           setForgotLoading(false);
-          if (res.ok && data.ok) {
+          if (res.ok && (data.ok || data.success)) {
             setForgotMaskedTarget(data.target || ident);
             setForgotTimer(60);
             setForgotDevOtp(data.dev_otp || '');
@@ -5045,7 +5045,7 @@
             setAuthFlowStep('forgot_step2');
             triggerToast('Security OTP Dispatched', `Verification code sent to ${data.target || ident}. ${data.dev_otp ? 'Dev Code: ' + data.dev_otp : ''}`);
           } else {
-            setAuthError(data.error || 'Failed to dispatch verification code. Please check your identifier.');
+            setAuthError((data.error || data.message) || 'Failed to dispatch verification code. Please check your identifier.');
           }
         } catch (err) {
           setForgotLoading(false);
@@ -5077,12 +5077,12 @@
           });
           const data = await res.json();
           setForgotLoading(false);
-          if (res.ok && data.ok) {
+          if (res.ok && (data.ok || data.success)) {
             setForgotResetToken(data.reset_token);
             setAuthFlowStep('forgot_step3');
             triggerToast('Identity Verified', 'Code confirmed. Please choose a strong, confidential new password.');
           } else {
-            setAuthError(data.error || 'Invalid verification code. Please re-enter.');
+            setAuthError((data.error || data.message) || 'Invalid verification code. Please re-enter.');
           }
         } catch (err) {
           setForgotLoading(false);
@@ -5122,12 +5122,12 @@
           });
           const data = await res.json();
           setForgotLoading(false);
-          if (res.ok && data.ok) {
+          if (res.ok && (data.ok || data.success)) {
             setAuthFlowStep('forgot_success');
             triggerToast('Password Updated', 'Your institutional account password has been updated securely.');
             if (window.confetti) window.confetti({ particleCount: 120, spread: 70 });
           } else {
-            setAuthError(data.error || 'Failed to update password. Reset token may have expired.');
+            setAuthError((data.error || data.message) || 'Failed to update password. Reset token may have expired.');
           }
         } catch (err) {
           setForgotLoading(false);
@@ -5202,7 +5202,7 @@
             body: JSON.stringify({ identifier: ident, password: rawPass, role: authRole })
           });
           const data = await res.json();
-          if (res.ok && data.ok) {
+          if (res.ok && (data.ok || data.success)) {
             const user = data.user;
             setCurrentUser(user);
             try {
@@ -5216,7 +5216,7 @@
             setAuthLoading(false);
             return;
           } else {
-            setAuthError(data.error || 'Authentication failed. Please verify credentials.');
+            setAuthError((data.error || data.message) || 'Authentication failed. Please verify credentials.');
             setAuthLoading(false);
             return;
           }
