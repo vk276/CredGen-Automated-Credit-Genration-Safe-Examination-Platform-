@@ -5116,6 +5116,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              identifier: forgotIdentifier.trim(),
               reset_token: forgotResetToken,
               new_password: forgotNewPass
             })

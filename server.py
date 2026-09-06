@@ -988,8 +988,8 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             reset_token = (body.get('reset_token') or '').strip()
             new_password = (body.get('new_password') or body.get('password') or '').strip()
 
-            if not identifier or not reset_token or not new_password:
-                self.send_json({"success": False, "message": "Identifier, reset token, and new password are required."}, 400)
+            if not reset_token or not new_password:
+                self.send_json({"success": False, "message": "Reset token and new password are required."}, 400)
                 return
 
             if len(new_password) < 8:
@@ -998,12 +998,19 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
 
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("""
-            SELECT * FROM otps 
-            WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
-              AND reset_token = ? AND verified = 1 AND expires_at > datetime('now')
-            ORDER BY id DESC LIMIT 1
-            """, (identifier, identifier, identifier, identifier, identifier, reset_token))
+            if identifier:
+                cur.execute("""
+                SELECT * FROM otps 
+                WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
+                  AND reset_token = ? AND verified = 1 AND expires_at > datetime('now')
+                ORDER BY id DESC LIMIT 1
+                """, (identifier, identifier, identifier, identifier, identifier, reset_token))
+            else:
+                cur.execute("""
+                SELECT * FROM otps 
+                WHERE reset_token = ? AND verified = 1 AND expires_at > datetime('now')
+                ORDER BY id DESC LIMIT 1
+                """, (reset_token,))
             valid_otp = cur.fetchone()
 
             if not valid_otp:
@@ -1011,11 +1018,12 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "message": "Invalid or expired password reset authorization. Please restart recovery."}, 401)
                 return
 
+            user_ident = identifier or valid_otp['identifier']
             hashed_pass = hash_password(new_password)
             cur.execute("""
             UPDATE users SET password = ? 
             WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
-            """, (hashed_pass, identifier, identifier, identifier, identifier))
+            """, (hashed_pass, user_ident, user_ident, user_ident, user_ident))
 
             # Invalidate reset token and revoke existing sessions for this user
             cur.execute("UPDATE otps SET reset_token = NULL WHERE id = ?", (valid_otp["id"],))
