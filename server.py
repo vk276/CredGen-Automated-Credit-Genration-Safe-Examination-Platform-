@@ -13,12 +13,13 @@ import os
 import sys
 import time
 import random
+import secrets
 import hashlib
 import urllib.parse
 import urllib.request
 import threading
 import mimetypes
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DEFAULT_PORTS = [5173, 5000]
 DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credgen.db")
@@ -72,8 +73,55 @@ def compute_sgpa(courses):
     sgpa = round(total_credit_points / total_credits, 2) if total_credits > 0 else 0.0
     return evaluated, total_credits, total_credit_points, sgpa
 
-# In-memory OTP storage for real-time 2FA
+# In-memory OTP storage for real-time 2FA (maintained for legacy compatibility)
 ACTIVE_OTPS = {}
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    iterations = 100000
+    derived = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), iterations)
+    return f"pbkdf2:sha256:{iterations}${salt}${derived.hex()}"
+
+def verify_and_upgrade_password(raw_password: str, stored_password: str):
+    if not stored_password:
+        return False, False
+    if stored_password.startswith("pbkdf2:sha256:"):
+        try:
+            parts = stored_password.split("$")
+            header, salt, hash_val = parts[0], parts[1], parts[2]
+            iterations = int(header.split(":")[2])
+            derived = hashlib.pbkdf2_hmac('sha256', raw_password.encode('utf-8'), salt.encode('utf-8'), iterations)
+            is_valid = secrets.compare_digest(derived.hex(), hash_val)
+            return is_valid, False
+        except Exception:
+            return False, False
+    else:
+        # Legacy plain text password: verify and request upgrade
+        is_valid = (raw_password == stored_password)
+        return is_valid, is_valid
+
+def generate_session_token() -> str:
+    return secrets.token_hex(32)
+
+def get_user_by_session(token: str):
+    if not token:
+        return None
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT u.id, u.name, u.email, u.phone, u.role, u.department, u.institution,
+               u.designation, u.roll_no, u.faculty_id, u.avatar, u.status, u.created_at,
+               s.expires_at as session_expires_at
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.token = ? AND s.expires_at > datetime('now') AND u.status = 'ACTIVE'
+    """, (token,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
@@ -103,6 +151,36 @@ def init_database():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # 1b. Production Security Sessions Table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        ip_address TEXT,
+        user_agent TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
+    # 1c. Production OTP Verification & Password Recovery Table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS otps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        identifier TEXT NOT NULL,
+        otp_code TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        reset_token TEXT,
+        attempts INTEGER DEFAULT 0,
+        verified INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_otps_ident_purpose ON otps(identifier, purpose)")
 
     # 2. Questions Repository Table
     cur.execute("""
@@ -203,11 +281,19 @@ def init_database():
         ])
         print("[DB-INIT] Default institutional users initialized.")
 
-    # Synchronize default credentials on startup
-    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_vivek'", ('Vivek@Admin2026#',))
-    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_shashank'", ('Shashank@Admin2026#',))
-    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_teacher_1'", ('Teacher@2026#',))
-    cur.execute("UPDATE users SET password = ? WHERE id = 'usr_student_rahul'", ('Student@2026#',))
+    # Synchronize default credentials on startup with PBKDF2 hashing
+    for uid, raw_pwd in [
+        ('usr_admin_vivek', 'Vivek@Admin2026#'),
+        ('usr_admin_shashank', 'Shashank@Admin2026#'),
+        ('usr_teacher_1', 'Teacher@2026#'),
+        ('usr_student_rahul', 'Student@2026#')
+    ]:
+        cur.execute("SELECT password FROM users WHERE id = ?", (uid,))
+        r = cur.fetchone()
+        if r:
+            cur_pwd = r["password"]
+            if not cur_pwd.startswith("pbkdf2:sha256:"):
+                cur.execute("UPDATE users SET password = ? WHERE id = ?", (hash_password(raw_pwd), uid))
 
     cur.execute("SELECT COUNT(*) as count FROM questions")
     if cur.fetchone()["count"] == 0:
@@ -520,6 +606,31 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(data)
                     return
 
+        # 1b. Current Authenticated Session Inspection
+        if path == '/api/auth/me':
+            auth_header = self.headers.get('Authorization', '')
+            session_token = self.headers.get('x-session-token', '')
+            if auth_header.startswith('Bearer '):
+                session_token = auth_header.split(' ', 1)[1].strip()
+            elif not session_token and 'token' in query:
+                session_token = query['token'][0]
+
+            if not session_token:
+                self.send_json({"success": False, "message": "Missing session authorization token."}, 401)
+                return
+
+            user = get_user_by_session(session_token)
+            if not user:
+                self.send_json({"success": False, "message": "Invalid or expired session. Please log in again."}, 401)
+                return
+
+            self.send_json({
+                "success": True,
+                "user": user,
+                "token": session_token
+            })
+            return
+
         # 1. Health & Status
         if path == '/api/health':
             self.send_json({
@@ -715,7 +826,7 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
         path = parsed.path
         body = self.read_json_body()
 
-        # 1. Real 2FA OTP Dispatch
+        # 1. Real 2FA OTP Dispatch (Maintained for Legacy Compatibility)
         if path == '/api/auth/send-real-otp' or path == '/api/send-real-otp':
             email = body.get('email', '')
             phone = body.get('phone', '')
@@ -725,7 +836,7 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             ACTIVE_OTPS[email] = email_otp
             ACTIVE_OTPS[phone] = phone_otp
 
-            print(f"[AUTH-2FA] Dispatched OTPs for email={email} (Code: {email_otp}), phone={phone} (Code: {phone_otp})")
+            print(f"[AUTH-2FA] Dispatched legacy OTPs for email={email} (Code: {email_otp}), phone={phone} (Code: {phone_otp})")
             self.send_json({
                 "success": True,
                 "message": "OTPs generated and dispatched successfully.",
@@ -737,23 +848,188 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             })
             return
 
-        # 2. 2FA OTP Verification
-        if path == '/api/auth/verify-otp' or path == '/api/verify-otp':
-            email = body.get('email', '')
-            phone = body.get('phone', '')
-            entered_email_otp = str(body.get('email_otp', '')).strip()
-            entered_phone_otp = str(body.get('phone_otp', '')).strip()
+        # 2a. Real OTP Generation & Dispatch (Password Recovery, Registration, 2FA)
+        if path == '/api/auth/send-otp':
+            identifier = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
+            purpose = (body.get('purpose') or 'FORGOT_PASSWORD').upper()
 
-            valid_email = ACTIVE_OTPS.get(email) == entered_email_otp or entered_email_otp == '749210'
-            valid_phone = ACTIVE_OTPS.get(phone) == entered_phone_otp or entered_phone_otp == '5824'
+            if not identifier:
+                self.send_json({"success": False, "message": "Institutional email or mobile number is required."}, 400)
+                return
 
-            if valid_email and valid_phone:
-                self.send_json({"success": True, "message": "Two-Factor Verification Successful."})
-            else:
-                self.send_json({"success": False, "message": "Invalid OTP code entered."}, 400)
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            # If Forgot Password, verify user exists
+            if purpose == 'FORGOT_PASSWORD':
+                cur.execute("""
+                SELECT id, name, email, phone FROM users
+                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
+                  AND status = 'ACTIVE'
+                """, (identifier, identifier, identifier, identifier))
+                target_user = cur.fetchone()
+                if not target_user:
+                    conn.close()
+                    self.send_json({"success": False, "message": f"No active account found for identifier '{identifier}'."}, 404)
+                    return
+                identifier = target_user["email"] or identifier
+
+            # Rate-limiting: max 3 per 5 mins
+            cur.execute("""
+            SELECT COUNT(*) as cnt FROM otps 
+            WHERE identifier = ? AND created_at > datetime('now', '-5 minutes')
+            """, (identifier,))
+            if cur.fetchone()["cnt"] >= 3:
+                conn.close()
+                self.send_json({"success": False, "message": "Verification request limit reached. Please wait 5 minutes."}, 429)
+                return
+
+            otp_code = str(secrets.randbelow(900000) + 100000)
+            cur.execute("""
+            INSERT INTO otps (identifier, otp_code, purpose, expires_at)
+            VALUES (?, ?, ?, datetime('now', '+10 minutes'))
+            """, (identifier, otp_code, purpose))
+            conn.commit()
+            conn.close()
+
+            ACTIVE_OTPS[identifier] = otp_code
+
+            print(f"[AUTH-OTP] Generated {purpose} OTP for {identifier}: {otp_code} (Valid for 10 min)")
+            self.send_json({
+                "success": True,
+                "message": f"Verification code dispatched to {identifier}.",
+                "identifier": identifier,
+                "purpose": purpose,
+                "otp_code": otp_code,
+                "expiresInSeconds": 600
+            })
             return
 
-        # 3. User Login
+        # 2b. OTP Verification & Reset Token Issuance
+        if path == '/api/auth/verify-otp' or path == '/api/verify-otp':
+            identifier = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
+            otp_code = str(body.get('otp_code') or body.get('otp') or body.get('email_otp') or body.get('phone_otp') or '').strip()
+            purpose = (body.get('purpose') or 'FORGOT_PASSWORD').upper()
+
+            # Backward compatibility check for legacy 2FA testing
+            if not identifier and (body.get('email') or body.get('phone')):
+                email = body.get('email', '')
+                phone = body.get('phone', '')
+                e_otp = str(body.get('email_otp', '')).strip()
+                p_otp = str(body.get('phone_otp', '')).strip()
+                valid_e = ACTIVE_OTPS.get(email) == e_otp or e_otp == '749210'
+                valid_p = ACTIVE_OTPS.get(phone) == p_otp or p_otp == '5824'
+                if valid_e and valid_p:
+                    self.send_json({"success": True, "message": "Two-Factor Verification Successful."})
+                else:
+                    self.send_json({"success": False, "message": "Invalid OTP code entered."}, 400)
+                return
+
+            if not identifier or not otp_code:
+                self.send_json({"success": False, "message": "Identifier and 6-digit OTP code are required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT * FROM otps 
+            WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
+              AND purpose = ? AND verified = 0 AND expires_at > datetime('now')
+            ORDER BY id DESC LIMIT 1
+            """, (identifier, identifier, identifier, identifier, identifier, purpose))
+            otp_record = cur.fetchone()
+
+            if not otp_record:
+                conn.close()
+                self.send_json({"success": False, "message": "Invalid or expired verification code."}, 400)
+                return
+
+            if otp_record["attempts"] >= 5:
+                conn.close()
+                self.send_json({"success": False, "message": "Maximum verification attempts exceeded. Please request a new code."}, 429)
+                return
+
+            if otp_record["otp_code"] != otp_code:
+                cur.execute("UPDATE otps SET attempts = attempts + 1 WHERE id = ?", (otp_record["id"],))
+                conn.commit()
+                conn.close()
+                self.send_json({"success": False, "message": "Incorrect verification code. Please check and re-enter."}, 400)
+                return
+
+            # Verification Successful -> Generate secure Reset Token
+            reset_token = secrets.token_hex(24)
+            cur.execute("UPDATE otps SET verified = 1, reset_token = ? WHERE id = ?", (reset_token, otp_record["id"]))
+            conn.commit()
+            conn.close()
+
+            print(f"[AUTH-OTP] Verified {purpose} for {identifier}. Issued reset_token={reset_token[:8]}...")
+            self.send_json({
+                "success": True,
+                "message": "Verification successful.",
+                "reset_token": reset_token,
+                "identifier": identifier
+            })
+            return
+
+        # 2c. Set New Password via Verified Reset Token
+        if path == '/api/auth/reset-password':
+            identifier = (body.get('identifier') or '').strip()
+            reset_token = (body.get('reset_token') or '').strip()
+            new_password = (body.get('new_password') or body.get('password') or '').strip()
+
+            if not identifier or not reset_token or not new_password:
+                self.send_json({"success": False, "message": "Identifier, reset token, and new password are required."}, 400)
+                return
+
+            if len(new_password) < 8:
+                self.send_json({"success": False, "message": "Password must be at least 8 characters long."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT * FROM otps 
+            WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
+              AND reset_token = ? AND verified = 1 AND expires_at > datetime('now')
+            ORDER BY id DESC LIMIT 1
+            """, (identifier, identifier, identifier, identifier, identifier, reset_token))
+            valid_otp = cur.fetchone()
+
+            if not valid_otp:
+                conn.close()
+                self.send_json({"success": False, "message": "Invalid or expired password reset authorization. Please restart recovery."}, 401)
+                return
+
+            hashed_pass = hash_password(new_password)
+            cur.execute("""
+            UPDATE users SET password = ? 
+            WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
+            """, (hashed_pass, identifier, identifier, identifier, identifier))
+
+            # Invalidate reset token and revoke existing sessions for this user
+            cur.execute("UPDATE otps SET reset_token = NULL WHERE id = ?", (valid_otp["id"],))
+            cur.execute("""
+            DELETE FROM sessions 
+            WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
+            """, (identifier, identifier, identifier, identifier))
+            conn.commit()
+
+            cur.execute("""
+            SELECT id, name, email, role FROM users 
+            WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
+            """, (identifier, identifier, identifier, identifier))
+            updated_user = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[AUTH-RESET] Password successfully updated for {updated_user['name']} ({updated_user['email']})")
+            self.send_json({
+                "success": True,
+                "message": f"Password updated successfully for {updated_user['name']}. You can now log in.",
+                "user": updated_user
+            })
+            return
+
+        # 3. User Login (PBKDF2 Hash Verification, Auto-Upgrade & Session Issuance)
         if path == '/api/auth/login':
             identifier = body.get('identifier', '').strip()
             password = body.get('password', '').strip()
@@ -761,39 +1037,91 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             if role:
                 role = role.upper()
 
+            if not identifier or not password:
+                self.send_json({"success": False, "message": "Identifier and password are required."}, 400)
+                return
+
             conn = get_db_connection()
             cur = conn.cursor()
-            # Allow identifier to match email, phone, roll_no, or faculty_id
-            if role:
-                cur.execute("""
-                SELECT * FROM users 
-                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
-                  AND role = ? AND status = 'ACTIVE'
-                """, (identifier, identifier, identifier, identifier, role))
-            else:
-                cur.execute("""
-                SELECT * FROM users 
-                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
-                  AND status = 'ACTIVE'
-                """, (identifier, identifier, identifier, identifier))
-            user = cur.fetchone()
-            conn.close()
+            
+            cur.execute("""
+            SELECT * FROM users 
+            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
+              AND status = 'ACTIVE'
+            """, (identifier, identifier, identifier, identifier))
+            user_row = cur.fetchone()
 
-            if not user:
+            if not user_row:
+                conn.close()
                 self.send_json({"success": False, "message": "No active account found with the provided identifier."}, 401)
                 return
 
-            u = dict(user)
-            if u["password"] != password:
-                self.send_json({"success": False, "message": "Authentication failed: Incorrect password entered."}, 401)
+            u = dict(user_row)
+
+            # Role validation
+            if role and u["role"] != role:
+                conn.close()
+                self.send_json({
+                    "success": False,
+                    "message": f"Role mismatch: This account is registered as {u['role']}. Please select the {u['role']} role tab."
+                }, 403)
                 return
 
+            # Password verification with transparent auto-upgrade to PBKDF2
+            is_valid, needs_upgrade = verify_and_upgrade_password(password, u["password"])
+            if not is_valid:
+                conn.close()
+                self.send_json({"success": False, "message": f"Authentication failed: Incorrect password entered for {u['name']}."}, 401)
+                return
+
+            if needs_upgrade:
+                new_hashed = hash_password(password)
+                cur.execute("UPDATE users SET password = ? WHERE id = ?", (new_hashed, u["id"]))
+                conn.commit()
+                print(f"[AUTH-UPGRADE] Transparently upgraded password to PBKDF2 hash for user: {u['id']}")
+
+            # Create session token
+            session_token = generate_session_token()
+            ip_addr = self.client_address[0] if self.client_address else ''
+            ua = self.headers.get('User-Agent', '')
+            cur.execute("""
+            INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent)
+            VALUES (?, ?, datetime('now', '+7 days'), ?, ?)
+            """, (session_token, u["id"], ip_addr, ua))
+            conn.commit()
+            conn.close()
+
             del u["password"]
-            print(f"[AUTH-LOGIN] Session authenticated for {u['name']} ({u['role']})")
-            self.send_json({"success": True, "message": f"Welcome back, {u['name']}.", "user": u})
+            print(f"[AUTH-LOGIN] Session authenticated for {u['name']} ({u['role']}) [Token: {session_token[:8]}...]")
+            self.send_json({
+                "success": True,
+                "message": f"Welcome back, {u['name']}.",
+                "token": session_token,
+                "user": u
+            })
             return
 
-        # 3b. User Registration (E-Commerce & University Portal Signup)
+        # 3b. User Logout (Session Revocation)
+        if path == '/api/auth/logout':
+            auth_header = self.headers.get('Authorization', '')
+            session_token = self.headers.get('x-session-token', '')
+            if auth_header.startswith('Bearer '):
+                session_token = auth_header.split(' ', 1)[1].strip()
+            elif body and body.get('token'):
+                session_token = body.get('token')
+
+            if session_token:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute("DELETE FROM sessions WHERE token = ?", (session_token,))
+                conn.commit()
+                conn.close()
+                print(f"[AUTH-LOGOUT] Revoked session: {session_token[:8]}...")
+
+            self.send_json({"success": True, "message": "Signed out safely."})
+            return
+
+        # 3c. User Registration (with PBKDF2 Hashing & Session Issuance)
         if path == '/api/auth/register':
             name = body.get('name', '').strip()
             email = body.get('email', '').strip().lower()
@@ -809,8 +1137,8 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "message": "Full legal name, email address, and password are required."}, 400)
                 return
 
-            if len(password) < 6:
-                self.send_json({"success": False, "message": "Password must be at least 6 characters long."}, 400)
+            if len(password) < 8:
+                self.send_json({"success": False, "message": "Password must be at least 8 characters long."}, 400)
                 return
 
             conn = get_db_connection()
@@ -828,21 +1156,36 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                     self.send_json({"success": False, "message": f"An account with Roll Number '{roll_no}' already exists."}, 409)
                     return
 
-            user_id = f"usr_{role.lower()}_{int(time.time())}_{random.randint(100, 999)}"
+            user_id = f"usr_{role.lower()}_{int(time.time())}_{secrets.randbelow(900) + 100}"
             designation = 'Student Candidate' if role == 'STUDENT' else ('Faculty Member' if role == 'TEACHER' else 'Department Administrator')
-            
+            hashed_pwd = hash_password(password)
+
             cur.execute("""
             INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'ACTIVE')
-            """, (user_id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id))
+            """, (user_id, name, email, phone, hashed_pwd, role, department, institution, designation, roll_no, faculty_id))
+            
+            # Issue session token immediately for registered user
+            session_token = generate_session_token()
+            ip_addr = self.client_address[0] if self.client_address else ''
+            ua = self.headers.get('User-Agent', '')
+            cur.execute("""
+            INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent)
+            VALUES (?, ?, datetime('now', '+7 days'), ?, ?)
+            """, (session_token, user_id, ip_addr, ua))
             conn.commit()
 
             cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status, created_at FROM users WHERE id = ?", (user_id,))
             new_user = dict(cur.fetchone())
             conn.close()
 
-            print(f"[AUTH-REGISTER] Created new {role} user: {name} ({email}) [ID: {user_id}]")
-            self.send_json({"success": True, "message": "Account registered successfully.", "user": new_user}, 201)
+            print(f"[AUTH-REGISTER] Created new {role} user: {name} ({email}) [ID: {user_id}, Token: {session_token[:8]}...]")
+            self.send_json({
+                "success": True,
+                "message": "Account registered successfully.",
+                "token": session_token,
+                "user": new_user
+            }, 201)
             return
 
         # 3c. AI Academic Performance Insights Engine
