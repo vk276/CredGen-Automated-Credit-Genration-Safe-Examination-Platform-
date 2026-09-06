@@ -6858,6 +6858,22 @@
                           <span className="text-emerald-400"><Icons.BookOpen /></span>
                           <span>Question Repository</span>
                         </button>
+                        <button
+                          onClick={() => {
+                            setAiGenTargetExamOnly(false);
+                            setAiGenResults([]);
+                            setShowAiQuestionModal(true);
+                          }}
+                          className="w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between bg-gradient-to-r from-indigo-950/40 via-purple-950/40 to-pink-950/30 text-indigo-300 border border-indigo-500/40 hover:border-indigo-400 shadow-glow-brand font-bold font-display"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-brand-400"><Icons.Sparkles /></span>
+                            <span>AI Question Generator</span>
+                          </div>
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            NEW
+                          </span>
+                        </button>
                         <button onClick={() => setCurrentView('users_mgmt')} className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 ${currentView === 'users_mgmt' ? 'bg-sky-600/20 text-sky-200 border border-sky-500/40 font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'}`}>
                           <span className="text-sky-400"><Icons.User /></span>
                           <span>User Registry</span>
@@ -6889,6 +6905,22 @@
                         <button onClick={() => setCurrentView('dashboard')} className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 ${currentView === 'dashboard' ? 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/40 shadow-glow-brand font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'}`}>
                           <span className="text-indigo-400"><Icons.BookOpen /></span>
                           <span>Faculty Dashboard</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAiGenTargetExamOnly(false);
+                            setAiGenResults([]);
+                            setShowAiQuestionModal(true);
+                          }}
+                          className="w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between bg-gradient-to-r from-indigo-950/40 via-purple-950/40 to-pink-950/30 text-indigo-300 border border-indigo-500/40 hover:border-indigo-400 shadow-glow-brand font-bold font-display"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-brand-400"><Icons.Sparkles /></span>
+                            <span>AI Question Generator</span>
+                          </div>
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            NEW
+                          </span>
                         </button>
                         <button onClick={() => { setStudioActiveTab('MARKS_INPUT'); setCurrentView('marksheet_studio'); }} className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 ${currentView === 'marksheet_studio' ? 'bg-amber-600/20 text-amber-200 border border-amber-500/40 shadow-glow-amber font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'}`}>
                           <span className="text-amber-400"><Icons.Printer /></span>
@@ -7038,7 +7070,19 @@
                               </button>
                             </div>
                           ) : (
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAiGenTargetExamOnly(false);
+                                  setAiGenResults([]);
+                                  setShowAiQuestionModal(true);
+                                }}
+                                className="btn-luxury px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-xs font-bold shadow-glow-brand flex items-center gap-1.5 transition-all font-display"
+                              >
+                                <Icons.Sparkles />
+                                <span>Generate Questions with AI</span>
+                              </button>
                               <button
                                 onClick={() => { setWizardStep(1); setCurrentView('exam_creator'); }}
                                 className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-glow-brand flex items-center gap-1.5"
@@ -7057,6 +7101,42 @@
                         </div>
                       </div>
                     </div>
+
+                    {/* TEACHER & ADMIN AI QUESTION GENERATOR QUICK LAUNCH BANNER */}
+                    {currentUser.role !== 'STUDENT' && (
+                      <div
+                        onClick={() => {
+                          setAiGenTargetExamOnly(false);
+                          setAiGenResults([]);
+                          setShowAiQuestionModal(true);
+                        }}
+                        className="glass-panel p-4 sm:p-5 rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-slate-900/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:border-indigo-400/80 transition-all shadow-glow-brand group"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-pink-500/20 text-brand-400 border border-indigo-500/40 flex items-center justify-center shadow-glow-brand group-hover:scale-105 transition-all shrink-0">
+                            <Icons.Sparkles />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-extrabold text-slate-100 font-display">AI Assessment Item Generator Studio</span>
+                              <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold border border-indigo-500/30">
+                                FACULTY SUITE
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Generate syllabus-aligned university MCQs, plausible distractors, and marking rubrics for your classes in 1 click.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-luxury px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-xs font-bold shadow-glow-brand flex items-center gap-1.5 shrink-0 font-display"
+                        >
+                          <Icons.Sparkles />
+                          <span>Open AI Generator</span>
+                        </button>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="animate-cascade-1 glass-card-interactive p-4 rounded-xl border border-slate-800 hover:border-emerald-500/40 transition-all">
