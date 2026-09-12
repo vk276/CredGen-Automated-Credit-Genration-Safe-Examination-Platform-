@@ -816,7 +816,6 @@
         name: 'Vivek Kumar',
         email: 'vivek.admin@credgen.mmdu.ac.in',
         phone: '+91 94160 12345',
-        password: 'Vivek@Admin2026#',
         role: 'ADMIN',
         rollNo: '11242634',
         department: 'Examination Control Board & CSE',
@@ -830,7 +829,6 @@
         name: 'Banda Shashank',
         email: 'shashank.admin@credgen.mmdu.ac.in',
         phone: '+91 94160 54321',
-        password: 'Shashank@Admin2026#',
         role: 'ADMIN',
         rollNo: '11242656',
         department: 'Examination Control Board & CSE',
@@ -844,7 +842,6 @@
         name: 'Dr. Vinsha Sumra',
         email: 'vinsha.sumra@mmdu.ac.in',
         phone: '+91 98765 43210',
-        password: 'Teacher@2026#',
         role: 'TEACHER',
         department: 'Computer Science & Engineering',
         facultyId: 'MMEC-CSE-101',
@@ -858,7 +855,6 @@
         name: 'Rahul Verma',
         email: 'rahul.verma@student.mmdu.ac.in',
         phone: '+91 98980 11223',
-        password: 'Student@2026#',
         role: 'STUDENT',
         rollNo: '11242601',
         section: 'C',
@@ -3006,7 +3002,7 @@
       const [forgotDeliveryChannel, setForgotDeliveryChannel] = useState('EMAIL'); // 'EMAIL' or 'SMS'
       const [forgotMaskedTarget, setForgotMaskedTarget] = useState('');
       const [forgotOtpDigits, setForgotOtpDigits] = useState(['', '', '', '', '', '']);
-      const [forgotDevOtp, setForgotDevOtp] = useState('');
+      
       const [forgotResetToken, setForgotResetToken] = useState('');
       const [forgotNewPass, setForgotNewPass] = useState('');
       const [forgotConfirmPass, setForgotConfirmPass] = useState('');
@@ -3025,8 +3021,8 @@
       const [showRegPass, setShowRegPass] = useState(false);
 
       // Step-by-Step OTP State
-      const [generatedEmailOtp, setGeneratedEmailOtp] = useState('749210');
-      const [generatedPhoneOtp, setGeneratedPhoneOtp] = useState('5824');
+      // Security: OTPs are external
+      
       const [inputEmailOtp, setInputEmailOtp] = useState(['', '', '', '', '', '']);
       const [inputPhoneOtp, setInputPhoneOtp] = useState(['', '', '', '']);
 
@@ -5040,22 +5036,15 @@
           if (res.ok && (data.ok || data.success)) {
             setForgotMaskedTarget(data.target || ident);
             setForgotTimer(60);
-            setForgotDevOtp(data.dev_otp || '');
             setForgotOtpDigits(['', '', '', '', '', '']);
             setAuthFlowStep('forgot_step2');
-            triggerToast('Security OTP Dispatched', `Verification code sent to ${data.target || ident}. ${data.dev_otp ? 'Dev Code: ' + data.dev_otp : ''}`);
+            triggerToast('Security OTP Dispatched', `A 6-digit verification code has been dispatched to ${data.target || ident}. Please check your external inbox.`);
           } else {
             setAuthError((data.error || data.message) || 'Failed to dispatch verification code. Please check your identifier.');
           }
         } catch (err) {
           setForgotLoading(false);
-          // Offline fallback
-          setForgotMaskedTarget(ident);
-          setForgotTimer(60);
-          setForgotDevOtp('749210');
-          setForgotOtpDigits(['', '', '', '', '', '']);
-          setAuthFlowStep('forgot_step2');
-          triggerToast('Security OTP Dispatched', 'Offline simulation active. Use code 749210 to verify.');
+          setAuthError('Network error. Unable to reach authentication server.');
         }
       };
 
@@ -5063,8 +5052,8 @@
         if (e && e.preventDefault) e.preventDefault();
         setAuthError('');
         const otpCode = forgotOtpDigits.join('').trim();
-        if (otpCode.length !== 6) {
-          setAuthError('Please enter the complete 6-digit verification code.');
+        if (otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
+          setAuthError('Please enter the complete 6-digit verification code received externally.');
           return;
         }
 
@@ -5080,19 +5069,13 @@
           if (res.ok && (data.ok || data.success)) {
             setForgotResetToken(data.reset_token);
             setAuthFlowStep('forgot_step3');
-            triggerToast('Identity Verified', 'Code confirmed. Please choose a strong, confidential new password.');
+            triggerToast('Identity Verified', 'External verification code confirmed. Please choose a strong new password.');
           } else {
             setAuthError((data.error || data.message) || 'Invalid verification code. Please re-enter.');
           }
         } catch (err) {
           setForgotLoading(false);
-          if (otpCode === '749210' || otpCode === '123456') {
-            setForgotResetToken('mock_reset_token_' + Date.now());
-            setAuthFlowStep('forgot_step3');
-            triggerToast('Identity Verified', 'Offline mode: Identity confirmed. Set new password.');
-          } else {
-            setAuthError('Invalid code. For offline testing use 749210.');
-          }
+          setAuthError('Network communication error during code verification.');
         }
       };
 
@@ -5195,7 +5178,6 @@
 
         setAuthLoading(true);
 
-        // First attempt server-backed login with PBKDF2 hashing
         try {
           const res = await fetch('/api/auth/login', {
             method: 'POST',
@@ -5203,6 +5185,7 @@
             body: JSON.stringify({ identifier: ident, password: rawPass, role: authRole })
           });
           const data = await res.json();
+          setAuthLoading(false);
           if (res.ok && (data.ok || data.success)) {
             const user = data.user;
             setCurrentUser(user);
@@ -5214,48 +5197,14 @@
             } catch (err) {}
             setCurrentView('dashboard');
             triggerToast('Authentication Successful', `Welcome, ${user.name}. Verified session active.`);
-            setAuthLoading(false);
             return;
           } else {
             setAuthError((data.error || data.message) || 'Authentication failed. Please verify credentials.');
-            setAuthLoading(false);
             return;
           }
         } catch (netErr) {
-          // Offline / Local State Fallback
-          const target = users.find(u => {
-            const matchEmail = (u.email || '').toLowerCase() === ident.toLowerCase();
-            const matchPhone = (u.phone || '').replace(/\s+/g, '') === ident.replace(/\s+/g, '');
-            const matchRoll = (u.rollNo || '').toLowerCase() === ident.toLowerCase();
-            const matchFaculty = (u.facultyId || '').toLowerCase() === ident.toLowerCase();
-            return (matchEmail || matchPhone || matchRoll || matchFaculty);
-          });
-
-          if (!target) {
-            setAuthError(`No account registered with identifier "${authIdentifier}". Please check your credentials or register.`);
-            setAuthLoading(false);
-            return;
-          }
-
-          if (target.role !== authRole) {
-            setAuthError(`Account found, but role mismatch: This account is registered as ${target.role}. Please select the ${target.role} role tab.`);
-            setAuthLoading(false);
-            return;
-          }
-
-          if (target.password !== rawPass) {
-            setAuthError(`Authentication failed: Incorrect password entered for ${target.name}.`);
-            setAuthLoading(false);
-            return;
-          }
-
-          setCurrentUser(target);
-          try {
-            localStorage.setItem('credgen_auth_user', JSON.stringify(target));
-          } catch (err) {}
-          setCurrentView('dashboard');
-          triggerToast('Authentication Successful', `Welcome, ${target.name}. Session active.`);
           setAuthLoading(false);
+          setAuthError('Unable to connect to authentication service. Please check your network connection.');
         }
       };
 
@@ -5299,130 +5248,47 @@
           return;
         }
 
-        const existing = users.find(u => 
-          u.email.toLowerCase() === regEmail.trim().toLowerCase() ||
-          (regRollOrId && (u.rollNo === regRollOrId.trim() || u.facultyId === regRollOrId.trim()))
-        );
+        setAuthLoading(true);
 
-        if (existing) {
-          setAuthError(`An account with this email or ID already exists (${existing.name}). Please sign in.`);
-          return;
-        }
-
-        const newUser = {
-          id: `usr_${Date.now()}`,
-          name: regName.trim(),
-          email: regEmail.trim().toLowerCase(),
-          phone: regPhone.trim(),
-          password: regPass.trim(),
-          role: authRole,
-          department: 'Computer Science & Engineering',
-          institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-          avatar: '',
-          rollNo: authRole === 'STUDENT' ? (regRollOrId.trim() || '11242699') : undefined,
-          facultyId: authRole === 'TEACHER' ? (regRollOrId.trim() || 'MMEC-FAC-99') : undefined,
-          verified: true,
-          status: 'ACTIVE'
-        };
-
-        const updatedUsers = [newUser, ...users];
-        setUsers(updatedUsers);
-        setCurrentUser(newUser);
         try {
-          localStorage.setItem('credgen_auth_user', JSON.stringify(newUser));
-        } catch (err) {}
-        setCurrentView('dashboard');
-        triggerToast('Account Registered & Verified', `Welcome to CredGen, ${newUser.name}. Your session is active.`);
-
-        // Sync with SQLite backend if online
-        try {
-          fetch('/api/auth/register', {
+          const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: newUser.name,
-              email: newUser.email,
-              phone: newUser.phone,
-              password: newUser.password,
-              role: newUser.role,
-              department: newUser.department,
-              institution: newUser.institution,
-              roll_no: newUser.rollNo,
-              faculty_id: newUser.facultyId
+              name: regName.trim(),
+              email: regEmail.trim().toLowerCase(),
+              phone: regPhone.trim(),
+              password: regPass.trim(),
+              role: authRole,
+              department: 'Computer Science & Engineering',
+              institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
+              rollNo: authRole === 'STUDENT' ? (regRollOrId.trim() || '11242699') : undefined,
+              facultyId: authRole === 'TEACHER' ? (regRollOrId.trim() || 'MMEC-FAC-99') : undefined
             })
-          }).catch(() => {});
-        } catch (err) {}
+          });
 
-        if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
-      };
+          const data = await res.json();
+          setAuthLoading(false);
 
-      // Step 1: Start 2FA Registration
-      const handleStartRegistration = (e) => {
-        e.preventDefault();
-        setAuthError('');
-
-        if (!regName || !regEmail || !regPhone || !regPass) {
-          setAuthError('Please complete all mandatory identity fields.');
-          return;
+          if (res.ok && (data.ok || data.success)) {
+            const user = data.user;
+            setCurrentUser(user);
+            try {
+              localStorage.setItem('credgen_auth_user', JSON.stringify(user));
+              if (data.token) {
+                localStorage.setItem('credgen_session_token', data.token);
+              }
+            } catch (err) {}
+            setCurrentView('dashboard');
+            triggerToast('Account Registered Successfully', `Welcome to CredGen, ${user.name}. Verified session active.`);
+            if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
+          } else {
+            setAuthError((data.error || data.message) || 'Registration failed. Please verify credentials.');
+          }
+        } catch (err) {
+          setAuthLoading(false);
+          setAuthError('Unable to connect to authentication server. Please check your network connection.');
         }
-
-        const newEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const newPhoneOtp = Math.floor(1000 + Math.random() * 9000).toString();
-
-        setGeneratedEmailOtp(newEmailOtp);
-        setGeneratedPhoneOtp(newPhoneOtp);
-        setInputEmailOtp(['', '', '', '', '', '']);
-        setInputPhoneOtp(['', '', '', '']);
-
-        setAuthFlowStep('reg_step2_email');
-        triggerToast('Gmail Verification Dispatched', `6-digit code sent to ${regEmail}. Code: ${newEmailOtp}`);
-      };
-
-      // Step 2: Verify Gmail OTP
-      const handleVerifyEmail = (e) => {
-        e.preventDefault();
-        const entered = inputEmailOtp.join('');
-
-        if (entered !== generatedEmailOtp) {
-          setAuthError(`Invalid Email Code. Dispatched code is: ${generatedEmailOtp}`);
-          return;
-        }
-
-        setAuthError('');
-        setAuthFlowStep('reg_step3_phone');
-        triggerToast('Email Verified', `Gmail verified. Now verifying mobile number ${regPhone}. SMS Code: ${generatedPhoneOtp}`);
-      };
-
-      // Step 3: Verify Phone SMS OTP
-      const handleVerifyPhone = (e) => {
-        e.preventDefault();
-        const entered = inputPhoneOtp.join('');
-
-        if (entered !== generatedPhoneOtp) {
-          setAuthError(`Invalid SMS Code. Dispatched code is: ${generatedPhoneOtp}`);
-          return;
-        }
-
-        const newUser = {
-          id: `usr_${Date.now()}`,
-          name: regName,
-          email: regEmail,
-          phone: regPhone,
-          password: regPass,
-          role: authRole,
-          department: 'Computer Science & Engineering',
-          avatar: '',
-          rollNo: authRole === 'STUDENT' ? (regRollOrId || '11242699') : undefined,
-          facultyId: authRole === 'TEACHER' ? (regRollOrId || 'MMEC-FAC-99') : undefined,
-          verified: true
-        };
-
-        setUsers([newUser, ...users]);
-        setCurrentUser(newUser);
-        setCurrentView('dashboard');
-        triggerToast('Account Registered & Verified', `Welcome to CredGen, ${newUser.name}.`);
-
-        if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
       };
 
       return (
@@ -7075,35 +6941,7 @@
                       <span>{authLoading ? 'Verifying Credentials...' : 'Authenticate & Sign In'}</span>
                     </button>
 
-                    {/* Institutional Verified Credentials Reference Card */}
-                    <div className="mt-4 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] space-y-2">
-                      <div className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <Icons.ShieldCheck />
-                        <span>Official Account Directory & Initial Passwords</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1.5 font-mono text-[10px] text-slate-300">
-                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
-                          <span>Admin: Vivek Kumar (11242634)</span>
-                          <span className="text-amber-400 font-bold">Vivek@Admin2026#</span>
-                        </div>
-                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
-                          <span>Admin: Banda Shashank (11242656)</span>
-                          <span className="text-indigo-400 font-bold">Shashank@Admin2026#</span>
-                        </div>
-                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
-                          <span>Faculty: Dr. Vinsha Sumra (MMEC-CSE-101)</span>
-                          <span className="text-purple-400 font-bold">Teacher@2026#</span>
-                        </div>
-                        <div className="p-1.5 rounded bg-slate-950/80 border border-slate-800/80 flex items-center justify-between">
-                          <span>Student: Rahul Verma (11242601)</span>
-                          <span className="text-emerald-400 font-bold">Student@2026#</span>
-                        </div>
-                      </div>
-                    </div>
-                  </form>
-                )}
-
-                {/* FORGOT PASSWORD STEP 1: IDENTITY & CHANNEL */}
+                    {/* FORGOT PASSWORD STEP 1: IDENTITY & CHANNEL */}
                 {authFlowStep === 'forgot_step1' && (
                   <form onSubmit={handleSendForgotOtp} className="space-y-4 text-xs">
                     <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
@@ -7191,14 +7029,12 @@
                           <Icons.ShieldCheck />
                           <span>6-Digit Verification Code</span>
                         </span>
-                        {forgotDevOtp && (
-                          <span className="text-[10px] text-amber-300 font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
-                            OTP: {forgotDevOtp}
-                          </span>
-                        )}
+                        <span className="text-[10px] text-indigo-400 font-mono px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+                          External Delivery
+                        </span>
                       </div>
                       <p className="text-[11px] text-slate-400">
-                        Dispatched to destination: <strong className="text-slate-200 font-mono">{forgotMaskedTarget}</strong>
+                        Enter the code sent to your registered address: <strong className="text-slate-200 font-mono">{forgotMaskedTarget}</strong>
                       </p>
                     </div>
 
@@ -7238,18 +7074,7 @@
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] pt-1">
-                      {forgotDevOtp ? (
-                        <button
-                          type="button"
-                          onClick={() => setForgotOtpDigits(forgotDevOtp.split(''))}
-                          className="text-brand-400 hover:text-brand-300 font-medium flex items-center gap-1 cursor-pointer"
-                        >
-                          <Icons.Key />
-                          <span>Auto-fill Code</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-500">Expires in 10 minutes</span>
-                      )}
+                      <span className="text-slate-500">Expires in 10 minutes</span>
                       <button
                         type="button"
                         disabled={forgotTimer > 0 || forgotLoading}
@@ -7516,95 +7341,6 @@
                     </button>
                   </form>
                 )}
-
-                {/* REGISTER STEP 2: GMAIL OTP */}
-                {authFlowStep === 'reg_step2_email' && (
-                  <form onSubmit={handleVerifyEmail} className="space-y-4 text-xs">
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-200">Gmail Verification Code</span>
-                        <span className="text-[10px] text-brand-300 font-mono font-semibold px-2 py-0.5 rounded bg-slate-800">
-                          Dispatched: {generatedEmailOtp}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400">Enter code sent to <strong className="text-slate-200 font-mono">{regEmail}</strong></p>
-                      
-                      <div className="flex justify-between gap-1 pt-1">
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
-                          <input
-                            key={i}
-                            type="text"
-                            maxLength={1}
-                            value={inputEmailOtp[i]}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const copy = [...inputEmailOtp];
-                              copy[i] = val;
-                              setInputEmailOtp(copy);
-                              if (val && e.target.nextElementSibling) e.target.nextElementSibling.focus();
-                            }}
-                            className="w-10 h-10 text-center font-mono font-bold text-sm rounded-lg form-input border-slate-700"
-                          />
-                        ))}
-                      </div>
-                      <button type="button" onClick={() => setInputEmailOtp(generatedEmailOtp.split(''))} className="text-[11px] text-brand-400 font-semibold">Auto-fill Code for Testing</button>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setAuthFlowStep('reg_step1')} className="px-4 py-2.5 rounded-lg bg-slate-800 text-slate-300 font-medium">Back</button>
-                      <button type="submit" className="flex-1 py-2.5 rounded-lg bg-brand-600 text-white font-semibold flex items-center justify-center gap-2">
-                        <span>Verify Gmail & Next</span>
-                        <Icons.ArrowRight />
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* REGISTER STEP 3: PHONE SMS OTP */}
-                {authFlowStep === 'reg_step3_phone' && (
-                  <form onSubmit={handleVerifyPhone} className="space-y-4 text-xs">
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-200">Mobile SMS OTP Code</span>
-                        <span className="text-[10px] text-emerald-300 font-mono font-semibold px-2 py-0.5 rounded bg-slate-800">
-                          Dispatched: {generatedPhoneOtp}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400">Enter code sent to <strong className="text-slate-200 font-mono">{regPhone}</strong></p>
-                      
-                      <div className="flex justify-center gap-2 pt-1">
-                        {[0, 1, 2, 3].map((i) => (
-                          <input
-                            key={i}
-                            type="text"
-                            maxLength={1}
-                            value={inputPhoneOtp[i]}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const copy = [...inputPhoneOtp];
-                              copy[i] = val;
-                              setInputPhoneOtp(copy);
-                              if (val && e.target.nextElementSibling) e.target.nextElementSibling.focus();
-                            }}
-                            className="w-11 h-10 text-center font-mono font-bold text-sm rounded-lg form-input border-slate-700"
-                          />
-                        ))}
-                      </div>
-                      <div className="text-center">
-                        <button type="button" onClick={() => setInputPhoneOtp(generatedPhoneOtp.split(''))} className="text-[11px] text-emerald-400 font-semibold">Auto-fill SMS Code for Testing</button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setAuthFlowStep('reg_step2_email')} className="px-4 py-2.5 rounded-lg bg-slate-800 text-slate-300 font-medium">Back</button>
-                      <button type="submit" className="flex-1 py-2.5 rounded-lg bg-emerald-600 text-white font-semibold shadow-glow-emerald flex items-center justify-center gap-2">
-                        <Icons.CheckCircle2 />
-                        <span>Verify Phone & Complete Registration</span>
-                      </button>
-                    </div>
-                  </form>
-                )}
-
               </div>
             </div>
           )}

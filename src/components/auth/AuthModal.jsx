@@ -452,7 +452,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
                     <CheckCircle2 className="w-3.5 h-3.5" /> Verified
                   </span>
                 ) : (
-                  <span className="text-[10px] text-amber-400 font-mono">OTP: 749210 (Demo)</span>
+                  <span className="text-[10px] text-indigo-400 font-mono">External Delivery</span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400">Enter 6-digit code sent to <strong className="text-slate-300">{regEmail}</strong></p>
@@ -483,7 +483,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
                     <CheckCircle2 className="w-3.5 h-3.5" /> Verified
                   </span>
                 ) : (
-                  <span className="text-[10px] text-amber-400 font-mono">OTP: 5824 (Demo)</span>
+                  <span className="text-[10px] text-indigo-400 font-mono">External Delivery</span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400">Enter 4-digit SMS OTP sent to <strong className="text-slate-300">{regPhone}</strong></p>

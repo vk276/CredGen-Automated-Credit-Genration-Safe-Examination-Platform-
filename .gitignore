@@ -48,9 +48,11 @@ yarn-error.log*
 *.sw?
 
 # OS Generated
-.DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
 
-# Scratch directory
+# Scratch & Temporary Testing Scripts
 scratch/
-

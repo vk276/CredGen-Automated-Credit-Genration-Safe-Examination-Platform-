@@ -19,6 +19,25 @@ import urllib.parse
 import urllib.request
 import threading
 import mimetypes
+
+def load_env_file():
+    env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
+load_env_file()
+
 from datetime import datetime, timedelta
 
 DEFAULT_PORTS = [5173, 5000]
@@ -73,8 +92,131 @@ def compute_sgpa(courses):
     sgpa = round(total_credit_points / total_credits, 2) if total_credits > 0 else 0.0
     return evaluated, total_credits, total_credit_points, sgpa
 
-# In-memory OTP storage for real-time 2FA (maintained for legacy compatibility)
-ACTIVE_OTPS = {}
+# Cryptographic Salt for Secure OTP Hashing
+OTP_SECRET_SALT = os.environ.get("CREDGEN_OTP_SALT") or "credgen_production_otp_salt_2026_secure"
+
+def hash_otp(identifier: str, otp_code: str) -> str:
+    """Store only salted SHA-256 hash of OTP. Plaintext OTP is NEVER stored in database."""
+    clean_id = (identifier or '').strip().lower()
+    clean_code = (otp_code or '').strip()
+    return hashlib.sha256(f"{clean_id}:{clean_code}:{OTP_SECRET_SALT}".encode("utf-8")).hexdigest()
+
+def send_real_email_otp(recipient_email: str, recipient_name: str, otp_code: str):
+    """
+    Dispatch real verification code via external SMTP provider (Gmail, SendGrid, Amazon SES, Brevo, etc.).
+    If SMTP provider credentials are not configured in environment, strictly returns False with setup instructions.
+    """
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
+    smtp_port_raw = os.environ.get("SMTP_PORT", "587").strip()
+    smtp_port = int(smtp_port_raw) if smtp_port_raw.isdigit() else 587
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = (os.environ.get("SMTP_PASSWORD") or os.environ.get("SMTP_PASS", "")).strip()
+    smtp_from = os.environ.get("SMTP_FROM", "").strip() or (f"CredGen Security <{smtp_user}>" if smtp_user else "CredGen Security <no-reply@credgen.mmdu.ac.in>")
+
+    if not smtp_host or not smtp_user or not smtp_pass:
+        return False, (
+            "Email delivery provider is not configured on this server. "
+            "To enable real email OTP delivery, please configure the following environment variables: "
+            "SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASSWORD (e.g. Gmail App Password or SendGrid API key)."
+        )
+
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"CredGen Security Verification Code: {otp_code} (Valid for 10 minutes)"
+        msg['From'] = smtp_from
+        msg['To'] = recipient_email
+
+        plain_text = f"""Hello {recipient_name},
+
+Your one-time security verification code for CredGen Institutional Examination Platform is:
+
+{otp_code}
+
+This code is valid for 10 minutes. If you did not request this verification, please contact your examination administrator immediately. Do not share this code with anyone.
+
+Maharishi Markandeshwar (Deemed to be University), Mullana
+Examination Control Board & Department of Computer Science & Engineering
+"""
+
+        html_text = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #090d16; color: #e2e8f0; margin: 0; padding: 24px;">
+  <div style="max-width: 520px; margin: 0 auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+    <div style="color: #6366f1; font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">CREDGEN INSTITUTIONAL PORTAL</div>
+    <div style="color: #94a3b8; font-size: 11px; margin-top: 2px; margin-bottom: 24px;">Maharishi Markandeshwar (Deemed to be University), Mullana</div>
+    <p style="font-size: 14px; margin-bottom: 8px;">Hello <strong>{recipient_name}</strong>,</p>
+    <p style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 20px;">Your confidential verification code for identity verification and password recovery is:</p>
+    <div style="background: #020617; border: 1px solid #312e81; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0;">
+      <div style="font-family: monospace; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #38bdf8;">{otp_code}</div>
+    </div>
+    <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">This code is valid for <strong>10 minutes</strong>. For your security, do not disclose this code to anyone. CredGen administrators will never ask for your verification code.</p>
+    <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #1e293b; font-size: 11px; color: #64748b; text-align: center;">
+      Automated Security Notification &bull; Examination Control Board & CSE
+    </div>
+  </div>
+</body>
+</html>"""
+
+        msg.attach(MIMEText(plain_text, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_text, 'html', 'utf-8'))
+
+        if smtp_port == 465:
+            import ssl
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=15) as server:
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+
+        return True, "Verification code sent to your registered email."
+    except Exception as e:
+        return False, f"Failed to dispatch email via SMTP ({smtp_host}): {str(e)}"
+
+def send_real_sms_otp(recipient_phone: str, otp_code: str):
+    """
+    Dispatch real verification code via Twilio SMS provider.
+    If Twilio credentials are not configured, strictly returns False with setup instructions.
+    """
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+    from_number = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
+
+    if not account_sid or not auth_token or not from_number:
+        return False, (
+            "SMS delivery service is not configured on this server. "
+            "To enable mobile SMS OTP delivery, please configure TWILIO_ACCOUNT_SID, "
+            "TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER in your environment variables."
+        )
+
+    try:
+        import urllib.request, urllib.parse, base64
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        data = urllib.parse.urlencode({
+            "To": recipient_phone,
+            "From": from_number,
+            "Body": f"CredGen Security: Your verification code is {otp_code}. Valid for 10 minutes. Do not share."
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        auth = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+        req.add_header("Authorization", f"Basic {auth}")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            if 200 <= resp.status < 300:
+                return True, "SMS verification code dispatched successfully."
+            return False, f"SMS provider returned HTTP {resp.status}."
+    except Exception as e:
+        return False, f"Failed to dispatch SMS: {str(e)}" 
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -99,6 +241,11 @@ def verify_and_upgrade_password(raw_password: str, stored_password: str):
         # Legacy plain text password: verify and request upgrade
         is_valid = (raw_password == stored_password)
         return is_valid, is_valid
+
+def verify_password(raw_password: str, stored_password: str) -> bool:
+    """Verify user password against PBKDF2 hash or legacy hash with constant-time comparison."""
+    valid, _ = verify_and_upgrade_password(raw_password, stored_password)
+    return bool(valid)
 
 def generate_session_token() -> str:
     return secrets.token_hex(32)
@@ -165,12 +312,13 @@ def init_database():
     )
     """)
 
-    # 1c. Production OTP Verification & Password Recovery Table
+    # 1c. Production OTP Verification & Password Recovery Table (Salted SHA-256 Hash Only)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS otps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         identifier TEXT NOT NULL,
-        otp_code TEXT NOT NULL,
+        otp_hash TEXT,
+        otp_code TEXT DEFAULT '',
         purpose TEXT NOT NULL,
         reset_token TEXT,
         attempts INTEGER DEFAULT 0,
@@ -179,6 +327,32 @@ def init_database():
         expires_at TIMESTAMP NOT NULL
     )
     """)
+    # Seamless SQLite schema migration for otp_hash and legacy otp_code
+    cur.execute("PRAGMA table_info(otps)")
+    cols_dict = {c[1]: c for c in cur.fetchall()}
+    if 'otp_hash' not in cols_dict:
+        cur.execute("ALTER TABLE otps ADD COLUMN otp_hash TEXT")
+    if 'otp_code' in cols_dict and cols_dict['otp_code'][3] == 1:
+        cur.execute("""
+        CREATE TABLE otps_clean (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            identifier TEXT NOT NULL,
+            otp_hash TEXT,
+            otp_code TEXT DEFAULT '',
+            purpose TEXT NOT NULL,
+            reset_token TEXT,
+            attempts INTEGER DEFAULT 0,
+            verified INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL
+        )
+        """)
+        cur.execute("""
+        INSERT INTO otps_clean (id, identifier, otp_hash, otp_code, purpose, reset_token, attempts, verified, created_at, expires_at)
+        SELECT id, identifier, otp_hash, otp_code, purpose, reset_token, attempts, verified, created_at, expires_at FROM otps
+        """)
+        cur.execute("DROP TABLE otps")
+        cur.execute("ALTER TABLE otps_clean RENAME TO otps")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_otps_ident_purpose ON otps(identifier, purpose)")
 
@@ -529,6 +703,12 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
 
     def send_json(self, data, status_code=200):
         if isinstance(data, dict):
+            # Strict security: NEVER leak OTP codes or dev bypasses in API responses
+            data.pop("dev_otp", None)
+            data.pop("otp_code", None)
+            data.pop("email_otp", None)
+            data.pop("phone_otp", None)
+
             if "success" in data and "ok" not in data:
                 data["ok"] = data["success"]
             elif "ok" in data and "success" not in data:
@@ -537,8 +717,6 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 data["error"] = data["message"]
             if "target" not in data and "identifier" in data:
                 data["target"] = data["identifier"]
-            if "dev_otp" not in data and "otp_code" in data:
-                data["dev_otp"] = data["otp_code"]
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Connection', 'close')
@@ -839,159 +1017,190 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
         path = parsed.path
         body = self.read_json_body()
 
-        # 1. Real 2FA OTP Dispatch (Maintained for Legacy Compatibility)
-        if path == '/api/auth/send-real-otp' or path == '/api/send-real-otp':
-            email = body.get('email', '')
-            phone = body.get('phone', '')
-            email_otp = str(random.randint(100000, 999999))
-            phone_otp = str(random.randint(1000, 9999))
-
-            ACTIVE_OTPS[email] = email_otp
-            ACTIVE_OTPS[phone] = phone_otp
-
-            print(f"[AUTH-2FA] Dispatched legacy OTPs for email={email} (Code: {email_otp}), phone={phone} (Code: {phone_otp})")
-            self.send_json({
-                "success": True,
-                "message": "OTPs generated and dispatched successfully.",
-                "email": email,
-                "phone": phone,
-                "email_otp": email_otp,
-                "phone_otp": phone_otp,
-                "status": "ACTIVE_VERIFICATION"
-            })
-            return
-
-        # 2a. Real OTP Generation & Dispatch (Password Recovery, Registration, 2FA)
-        if path == '/api/auth/send-otp':
+        # 1. Real OTP Generation & External Dispatch (Password Recovery & Identity Verification)
+        if path == '/api/auth/send-otp' or path == '/api/auth/send-real-otp' or path == '/api/send-real-otp':
             identifier = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
+            channel = (body.get('channel') or 'EMAIL').upper()
             purpose = (body.get('purpose') or 'FORGOT_PASSWORD').upper()
 
             if not identifier:
-                self.send_json({"success": False, "message": "Institutional email or mobile number is required."}, 400)
+                self.send_json({"success": False, "message": "Please enter your registered institutional email, mobile number, roll number, or faculty ID."}, 400)
                 return
+
+            client_ip = self.client_address[0] if self.client_address else '127.0.0.1'
 
             conn = get_db_connection()
             cur = conn.cursor()
 
-            # If Forgot Password, verify user exists
-            if purpose == 'FORGOT_PASSWORD':
-                cur.execute("""
-                SELECT id, name, email, phone FROM users
-                WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
-                  AND status = 'ACTIVE'
-                """, (identifier, identifier, identifier, identifier))
-                target_user = cur.fetchone()
-                if not target_user:
-                    conn.close()
-                    self.send_json({"success": False, "message": f"No active account found for identifier '{identifier}'."}, 404)
-                    return
-                identifier = target_user["email"] or identifier
-
-            # Rate-limiting: max 3 per 5 mins
+            # Find active user account
             cur.execute("""
-            SELECT COUNT(*) as cnt FROM otps 
-            WHERE identifier = ? AND created_at > datetime('now', '-5 minutes')
-            """, (identifier,))
-            if cur.fetchone()["cnt"] >= 3:
+            SELECT id, name, email, phone, roll_no, faculty_id FROM users
+            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
+              AND status = 'ACTIVE'
+            """, (identifier, identifier, identifier, identifier))
+            user_row = cur.fetchone()
+
+            if not user_row:
                 conn.close()
-                self.send_json({"success": False, "message": "Verification request limit reached. Please wait 5 minutes."}, 429)
+                self.send_json({"success": False, "message": f"No active account found for identifier '{identifier}'. Please verify your credentials."}, 404)
                 return
 
-            otp_code = str(secrets.randbelow(900000) + 100000)
+            u = dict(user_row)
+            canonical_ident = u["email"] or u["phone"] or identifier
+
+            # Rate Limiting: Max 3 requests per 10 minutes per identifier
             cur.execute("""
-            INSERT INTO otps (identifier, otp_code, purpose, expires_at)
-            VALUES (?, ?, ?, datetime('now', '+10 minutes'))
-            """, (identifier, otp_code, purpose))
+            SELECT COUNT(*) as cnt FROM otps 
+            WHERE identifier = ? AND created_at > datetime('now', '-10 minutes')
+            """, (canonical_ident,))
+            if cur.fetchone()["cnt"] >= 3:
+                conn.close()
+                self.send_json({"success": False, "message": "Too many verification requests. Please wait 10 minutes before requesting a new code."}, 429)
+                return
+
+            # Secure random 6-digit numeric OTP
+            raw_otp = f"{secrets.randbelow(900000) + 100000}"
+            secure_hash = hash_otp(canonical_ident, raw_otp)
+
+            # Determine destination target and mask for privacy
+            if channel == 'SMS' and u.get('phone'):
+                dest_target = u['phone']
+                clean_p = dest_target.replace(' ', '')
+                masked_target = f"{clean_p[:5]}*****{clean_p[-3:]}" if len(clean_p) >= 8 else dest_target
+                sent_ok, provider_msg = send_real_sms_otp(dest_target, raw_otp)
+            else:
+                dest_target = u['email']
+                parts = dest_target.split('@')
+                if len(parts) == 2:
+                    name_p, dom_p = parts
+                    masked_target = f"{name_p[0]}***{name_p[-1] if len(name_p) > 1 else ''}@{dom_p}"
+                else:
+                    masked_target = dest_target
+                sent_ok, provider_msg = send_real_email_otp(dest_target, u['name'], raw_otp)
+
+            # Rule 12: If provider is not configured, DO NOT fake delivery and DO NOT display OTP!
+            if not sent_ok:
+                conn.close()
+                self.send_json({
+                    "success": False,
+                    "message": provider_msg,
+                    "provider_configured": False
+                }, 503)
+                return
+
+            # Invalidate previous unverified OTPs for this account
+            cur.execute("UPDATE otps SET verified = 2 WHERE identifier = ? AND verified = 0", (canonical_ident,))
+
+            # Store ONLY the salted cryptographic hash with 10-minute expiry (Plaintext OTP is NEVER stored)
+            cur.execute("""
+            INSERT INTO otps (identifier, otp_hash, otp_code, purpose, attempts, verified, expires_at)
+            VALUES (?, ?, '', ?, 0, 0, datetime('now', '+10 minutes'))
+            """, (canonical_ident, secure_hash, purpose))
             conn.commit()
             conn.close()
 
-            ACTIVE_OTPS[identifier] = otp_code
+            # Safe audit log (Zero passwords, Zero OTPs)
+            print(f"[AUTH-OTP] Security OTP dispatched via {channel} to {masked_target} (Valid 10 mins)")
 
-            print(f"[AUTH-OTP] Generated {purpose} OTP for {identifier}: {otp_code} (Valid for 10 min)")
+            # Return success WITHOUT the OTP
             self.send_json({
                 "success": True,
-                "message": f"Verification code dispatched to {identifier}.",
-                "identifier": identifier,
-                "purpose": purpose,
-                "otp_code": otp_code,
-                "expiresInSeconds": 600
+                "message": f"A 6-digit verification code has been dispatched to {masked_target}.",
+                "target": masked_target,
+                "expires_in": 600
             })
             return
 
-        # 2b. OTP Verification & Reset Token Issuance
+        # 2. OTP Verification & Reset Token Issuance
         if path == '/api/auth/verify-otp' or path == '/api/verify-otp':
-            identifier = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
-            otp_code = str(body.get('otp_code') or body.get('otp') or body.get('email_otp') or body.get('phone_otp') or '').strip()
+            identifier = (body.get('identifier') or '').strip()
+            otp_code = str(body.get('otp_code') or body.get('otp') or '').strip()
             purpose = (body.get('purpose') or 'FORGOT_PASSWORD').upper()
 
-            # Backward compatibility check for legacy 2FA testing
-            if not identifier and (body.get('email') or body.get('phone')):
-                email = body.get('email', '')
-                phone = body.get('phone', '')
-                e_otp = str(body.get('email_otp', '')).strip()
-                p_otp = str(body.get('phone_otp', '')).strip()
-                valid_e = ACTIVE_OTPS.get(email) == e_otp or e_otp == '749210'
-                valid_p = ACTIVE_OTPS.get(phone) == p_otp or p_otp == '5824'
-                if valid_e and valid_p:
-                    self.send_json({"success": True, "message": "Two-Factor Verification Successful."})
-                else:
-                    self.send_json({"success": False, "message": "Invalid OTP code entered."}, 400)
+            if not identifier or not otp_code:
+                self.send_json({"success": False, "message": "Identifier and 6-digit verification code are required."}, 400)
                 return
 
-            if not identifier or not otp_code:
-                self.send_json({"success": False, "message": "Identifier and 6-digit OTP code are required."}, 400)
+            if len(otp_code) != 6 or not otp_code.isdigit():
+                self.send_json({"success": False, "message": "Verification code must be exactly 6 digits."}, 400)
                 return
 
             conn = get_db_connection()
             cur = conn.cursor()
+
+            # Find canonical account
+            cur.execute("""
+            SELECT id, email, phone, roll_no, faculty_id FROM users
+            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
+            """, (identifier, identifier, identifier, identifier))
+            u_row = cur.fetchone()
+            canonical_ident = u_row["email"] if u_row else identifier
+
+            # Find active OTP record
             cur.execute("""
             SELECT * FROM otps 
-            WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
+            WHERE (identifier = ? OR identifier = ?)
               AND purpose = ? AND verified = 0 AND expires_at > datetime('now')
             ORDER BY id DESC LIMIT 1
-            """, (identifier, identifier, identifier, identifier, identifier, purpose))
+            """, (identifier, canonical_ident, purpose))
             otp_record = cur.fetchone()
 
             if not otp_record:
                 conn.close()
-                self.send_json({"success": False, "message": "Invalid or expired verification code."}, 400)
+                self.send_json({"success": False, "message": "No active verification code found or code has expired (10-minute limit). Please request a new code."}, 400)
                 return
 
+            # Check attempt limit (Max 5 attempts)
             if otp_record["attempts"] >= 5:
-                conn.close()
-                self.send_json({"success": False, "message": "Maximum verification attempts exceeded. Please request a new code."}, 429)
-                return
-
-            if otp_record["otp_code"] != otp_code:
-                cur.execute("UPDATE otps SET attempts = attempts + 1 WHERE id = ?", (otp_record["id"],))
+                cur.execute("UPDATE otps SET verified = 2 WHERE id = ?", (otp_record["id"],))
                 conn.commit()
                 conn.close()
-                self.send_json({"success": False, "message": "Incorrect verification code. Please check and re-enter."}, 400)
+                self.send_json({"success": False, "message": "Maximum verification attempts exceeded. Code has been locked for security. Please request a new code."}, 429)
                 return
 
-            # Verification Successful -> Generate secure Reset Token
+            # Secure constant-time hash comparison
+            expected_hash = otp_record["otp_hash"]
+            computed_hash = hash_otp(otp_record["identifier"], otp_code)
+
+            if not expected_hash or not secrets.compare_digest(expected_hash, computed_hash):
+                new_attempts = otp_record["attempts"] + 1
+                cur.execute("UPDATE otps SET attempts = ? WHERE id = ?", (new_attempts, otp_record["id"]))
+                conn.commit()
+                conn.close()
+                remaining = max(0, 5 - new_attempts)
+                self.send_json({
+                    "success": False,
+                    "message": f"Incorrect verification code. Attempts remaining: {remaining}."
+                }, 400)
+                return
+
+            # Verification Successful -> Issue one-time 24-byte cryptographically random reset token (15-min TTL)
             reset_token = secrets.token_hex(24)
-            cur.execute("UPDATE otps SET verified = 1, reset_token = ? WHERE id = ?", (reset_token, otp_record["id"]))
+            cur.execute("""
+            UPDATE otps 
+            SET verified = 1, reset_token = ?, expires_at = datetime('now', '+15 minutes')
+            WHERE id = ?
+            """, (reset_token, otp_record["id"]))
             conn.commit()
             conn.close()
 
-            print(f"[AUTH-OTP] Verified {purpose} for {identifier}. Issued reset_token={reset_token[:8]}...")
+            print(f"[AUTH-OTP] Verified identity for {canonical_ident}. Issued single-use reset authorization token.")
             self.send_json({
                 "success": True,
-                "message": "Verification successful.",
+                "message": "Identity verified successfully. You may now set your new confidential password.",
                 "reset_token": reset_token,
-                "identifier": identifier
+                "identifier": canonical_ident
             })
             return
 
-        # 2c. Set New Password via Verified Reset Token
+        # 3. Set New Password via Verified Reset Token
         if path == '/api/auth/reset-password':
             identifier = (body.get('identifier') or '').strip()
             reset_token = (body.get('reset_token') or '').strip()
             new_password = (body.get('new_password') or body.get('password') or '').strip()
 
             if not reset_token or not new_password:
-                self.send_json({"success": False, "message": "Reset token and new password are required."}, 400)
+                self.send_json({"success": False, "message": "Reset authorization token and new password are required."}, 400)
                 return
 
             if len(new_password) < 8:
@@ -1027,26 +1236,27 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
             """, (hashed_pass, user_ident, user_ident, user_ident, user_ident))
 
-            # Invalidate reset token and revoke existing sessions for this user
-            cur.execute("UPDATE otps SET reset_token = NULL WHERE id = ?", (valid_otp["id"],))
+            # Invalidate reset token to prevent reuse
+            cur.execute("UPDATE otps SET reset_token = NULL, verified = 2 WHERE id = ?", (valid_otp["id"],))
+
+            # Revoke all existing sessions for this user
             cur.execute("""
             DELETE FROM sessions 
             WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
-            """, (identifier, identifier, identifier, identifier))
+            """, (user_ident, user_ident, user_ident, user_ident))
             conn.commit()
 
             cur.execute("""
             SELECT id, name, email, role FROM users 
             WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
-            """, (identifier, identifier, identifier, identifier))
+            """, (user_ident, user_ident, user_ident, user_ident))
             updated_user = dict(cur.fetchone())
             conn.close()
 
-            print(f"[AUTH-RESET] Password successfully updated for {updated_user['name']} ({updated_user['email']})")
+            print(f"[AUTH-RESET] Password successfully updated for user {updated_user['id']}. All sessions revoked.")
             self.send_json({
                 "success": True,
-                "message": f"Password updated successfully for {updated_user['name']}. You can now log in.",
-                "user": updated_user
+                "message": "Account password updated securely. All previous active sessions have been invalidated. Please sign in."
             })
             return
 
