@@ -244,6 +244,76 @@ def verify_password(raw_password: str, stored_password: str) -> bool:
     valid, _ = verify_and_upgrade_password(raw_password, stored_password)
     return bool(valid)
 
+def find_user_by_identifier(cursor, raw_identifier: str):
+    """
+    Universally lookup active user by:
+    - Student Roll Number (exact, whitespace-trimmed, digits-only)
+    - Faculty ID (case-insensitive, normalized dashes/slashes/spaces)
+    - Institutional Email (case-insensitive, trimmed)
+    - Registered Mobile/Phone Number (10 digits, +91, with/without spaces/dashes)
+    - Primary User ID (e.g. usr_student_rahul, usr_admin_vivek)
+    """
+    if not raw_identifier:
+        return None
+    raw = str(raw_identifier).strip()
+    if not raw:
+        return None
+    raw_lower = raw.lower()
+    
+    # 1. Exact match on email, phone, roll_no, faculty_id, or id
+    cursor.execute("""
+        SELECT * FROM users
+        WHERE (
+            LOWER(email) = ? OR 
+            phone = ? OR 
+            roll_no = ? OR 
+            LOWER(faculty_id) = ? OR 
+            id = ?
+        ) AND status = 'ACTIVE'
+    """, (raw_lower, raw, raw, raw_lower, raw))
+    row = cursor.fetchone()
+    if row:
+        return dict(row)
+
+    # 2. Case-insensitive / normalized faculty ID (e.g. mmec-cse-101 vs MMEC-CSE-101, hyphens vs underscores/spaces/slashes)
+    norm_faculty = raw_lower.replace(' ', '-').replace('/', '-').replace('_', '-')
+    cursor.execute("""
+        SELECT * FROM users
+        WHERE LOWER(REPLACE(REPLACE(REPLACE(COALESCE(faculty_id, ''), ' ', '-'), '/', '-'), '_', '-')) = ?
+          AND status = 'ACTIVE'
+    """, (norm_faculty,))
+    row = cursor.fetchone()
+    if row:
+        return dict(row)
+
+    # 3. Phone number matching (match by last 10 digits or normalized digits)
+    digits = ''.join(c for c in raw if c.isdigit())
+    if len(digits) >= 10:
+        last10 = digits[-10:]
+        cursor.execute("SELECT * FROM users WHERE status = 'ACTIVE'")
+        for r in cursor.fetchall():
+            u_phone = r['phone'] or ''
+            u_digits = ''.join(c for c in u_phone if c.isdigit())
+            if u_digits.endswith(last10):
+                return dict(r)
+
+    # 4. Roll number normalized (digits only comparison)
+    if digits and len(digits) >= 6:
+        cursor.execute("SELECT * FROM users WHERE status = 'ACTIVE'")
+        for r in cursor.fetchall():
+            u_roll = r['roll_no'] or ''
+            u_roll_digits = ''.join(c for c in u_roll if c.isdigit())
+            if u_roll_digits and u_roll_digits == digits:
+                return dict(r)
+
+    # 5. Match by full name if entered accurately
+    cursor.execute("SELECT * FROM users WHERE LOWER(name) = ? AND status = 'ACTIVE'", (raw_lower,))
+    row = cursor.fetchone()
+    if row:
+        return dict(row)
+
+    return None
+
 def generate_session_token() -> str:
     return secrets.token_hex(32)
 
@@ -1065,27 +1135,21 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             conn = get_db_connection()
             cur = conn.cursor()
 
-            # Find active user account
-            cur.execute("""
-            SELECT id, name, email, phone, roll_no, faculty_id FROM users
-            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
-              AND status = 'ACTIVE'
-            """, (identifier, identifier, identifier, identifier))
-            user_row = cur.fetchone()
+            # Find active user account across roll number, faculty ID, email, and mobile
+            u = find_user_by_identifier(cur, identifier)
 
-            if not user_row:
+            if not u:
                 conn.close()
                 self.send_json({"success": False, "message": f"No active account found for identifier '{identifier}'. Please verify your credentials."}, 404)
                 return
 
-            u = dict(user_row)
-            canonical_ident = u["email"] or u["phone"] or identifier
+            canonical_ident = u.get("email") or u.get("phone") or u["id"]
 
             # Rate Limiting: Max 3 requests per 10 minutes per identifier
             cur.execute("""
             SELECT COUNT(*) as cnt FROM otps 
-            WHERE identifier = ? AND created_at > datetime('now', '-10 minutes')
-            """, (canonical_ident,))
+            WHERE (identifier = ? OR identifier = ?) AND created_at > datetime('now', '-10 minutes')
+            """, (canonical_ident, u["id"]))
             if cur.fetchone()["cnt"] >= 3:
                 conn.close()
                 self.send_json({"success": False, "message": "Too many verification requests. Please wait 10 minutes before requesting a new code."}, 429)
@@ -1096,12 +1160,20 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             secure_hash = hash_otp(canonical_ident, raw_otp)
 
             # Determine destination target and mask for privacy
-            if channel == 'SMS' and u.get('phone'):
+            if channel == 'SMS':
+                if not u.get('phone'):
+                    conn.close()
+                    self.send_json({"success": False, "message": "This account does not have a registered mobile number on file. Please select Email verification."}, 400)
+                    return
                 dest_target = u['phone']
                 clean_p = dest_target.replace(' ', '')
                 masked_target = f"{clean_p[:5]}*****{clean_p[-3:]}" if len(clean_p) >= 8 else dest_target
                 sent_ok, provider_msg = send_real_sms_otp(dest_target, raw_otp)
             else:
+                if not u.get('email'):
+                    conn.close()
+                    self.send_json({"success": False, "message": "This account does not have a registered institutional email address on file. Please contact your administrator."}, 400)
+                    return
                 dest_target = u['email']
                 parts = dest_target.split('@')
                 if len(parts) == 2:
@@ -1162,20 +1234,17 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             cur = conn.cursor()
 
             # Find canonical account
-            cur.execute("""
-            SELECT id, email, phone, roll_no, faculty_id FROM users
-            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
-            """, (identifier, identifier, identifier, identifier))
-            u_row = cur.fetchone()
-            canonical_ident = u_row["email"] if u_row else identifier
+            u_row = find_user_by_identifier(cur, identifier)
+            canonical_ident = u_row["email"] if (u_row and u_row.get("email")) else (u_row["phone"] if (u_row and u_row.get("phone")) else identifier)
+            user_id = u_row["id"] if u_row else ""
 
             # Find active OTP record
             cur.execute("""
             SELECT * FROM otps 
-            WHERE (identifier = ? OR identifier = ?)
+            WHERE (identifier = ? OR identifier = ? OR identifier = ?)
               AND purpose = ? AND verified = 0 AND expires_at > datetime('now')
             ORDER BY id DESC LIMIT 1
-            """, (identifier, canonical_ident, purpose))
+            """, (identifier, canonical_ident, user_id, purpose))
             otp_record = cur.fetchone()
 
             if not otp_record:
@@ -1242,19 +1311,13 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
 
             conn = get_db_connection()
             cur = conn.cursor()
-            if identifier:
-                cur.execute("""
-                SELECT * FROM otps 
-                WHERE (identifier = ? OR identifier = (SELECT email FROM users WHERE LOWER(email)=LOWER(?) OR phone=? OR roll_no=? OR faculty_id=?))
-                  AND reset_token = ? AND verified = 1 AND expires_at > datetime('now')
-                ORDER BY id DESC LIMIT 1
-                """, (identifier, identifier, identifier, identifier, identifier, reset_token))
-            else:
-                cur.execute("""
-                SELECT * FROM otps 
-                WHERE reset_token = ? AND verified = 1 AND expires_at > datetime('now')
-                ORDER BY id DESC LIMIT 1
-                """, (reset_token,))
+
+            # Lookup valid OTP authorization token
+            cur.execute("""
+            SELECT * FROM otps 
+            WHERE reset_token = ? AND verified = 1 AND expires_at > datetime('now')
+            ORDER BY id DESC LIMIT 1
+            """, (reset_token,))
             valid_otp = cur.fetchone()
 
             if not valid_otp:
@@ -1262,31 +1325,29 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"success": False, "message": "Invalid or expired password reset authorization. Please restart recovery."}, 401)
                 return
 
+            # Lookup target user account across all identifier fields
             user_ident = identifier or valid_otp['identifier']
+            target_user = find_user_by_identifier(cur, user_ident)
+            if not target_user and valid_otp.get('identifier'):
+                target_user = find_user_by_identifier(cur, valid_otp['identifier'])
+
+            if not target_user:
+                conn.close()
+                self.send_json({"success": False, "message": "User account associated with this reset token could not be found."}, 404)
+                return
+
             hashed_pass = hash_password(new_password)
-            cur.execute("""
-            UPDATE users SET password = ? 
-            WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
-            """, (hashed_pass, user_ident, user_ident, user_ident, user_ident))
+            cur.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, target_user['id']))
 
             # Invalidate reset token to prevent reuse
             cur.execute("UPDATE otps SET reset_token = NULL, verified = 2 WHERE id = ?", (valid_otp["id"],))
 
             # Revoke all existing sessions for this user
-            cur.execute("""
-            DELETE FROM sessions 
-            WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?)
-            """, (user_ident, user_ident, user_ident, user_ident))
+            cur.execute("DELETE FROM sessions WHERE user_id = ?", (target_user['id'],))
             conn.commit()
-
-            cur.execute("""
-            SELECT id, name, email, role FROM users 
-            WHERE LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?
-            """, (user_ident, user_ident, user_ident, user_ident))
-            updated_user = dict(cur.fetchone())
             conn.close()
 
-            print(f"[AUTH-RESET] Password successfully updated for user {updated_user['id']}. All sessions revoked.")
+            print(f"[AUTH-RESET] Password successfully updated for user {target_user['id']}. All sessions revoked.")
             self.send_json({
                 "success": True,
                 "message": "Account password updated securely. All previous active sessions have been invalidated. Please sign in."
@@ -1308,12 +1369,7 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             conn = get_db_connection()
             cur = conn.cursor()
             
-            cur.execute("""
-            SELECT * FROM users 
-            WHERE (LOWER(email) = LOWER(?) OR phone = ? OR roll_no = ? OR faculty_id = ?) 
-              AND status = 'ACTIVE'
-            """, (identifier, identifier, identifier, identifier))
-            user_row = cur.fetchone()
+            user_row = find_user_by_identifier(cur, identifier)
 
             if not user_row:
                 conn.close()
