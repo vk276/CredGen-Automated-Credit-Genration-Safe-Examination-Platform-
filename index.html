@@ -5229,7 +5229,7 @@
       };
 
       // Direct E-Commerce & Institutional Registration Handler
-      const handleDirectRegister = (e) => {
+      const handleDirectRegister = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
         setAuthError('');
 
@@ -6940,8 +6940,10 @@
                       )}
                       <span>{authLoading ? 'Verifying Credentials...' : 'Authenticate & Sign In'}</span>
                     </button>
+                  </form>
+                )}
 
-                    {/* FORGOT PASSWORD STEP 1: IDENTITY & CHANNEL */}
+                {/* FORGOT PASSWORD STEP 1: IDENTITY & CHANNEL */}
                 {authFlowStep === 'forgot_step1' && (
                   <form onSubmit={handleSendForgotOtp} className="space-y-4 text-xs">
                     <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
