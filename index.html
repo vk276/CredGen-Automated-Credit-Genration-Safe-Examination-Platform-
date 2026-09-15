@@ -7025,19 +7025,18 @@
                 {/* FORGOT PASSWORD STEP 2: VERIFY 6-DIGIT OTP */}
                 {authFlowStep === 'forgot_step2' && (
                   <form onSubmit={handleVerifyForgotOtp} className="space-y-4 text-xs">
-                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                          <Icons.ShieldCheck />
-                          <span>6-Digit Verification Code</span>
-                        </span>
-                        <span className="text-[10px] text-indigo-400 font-mono px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
-                          External Delivery
-                        </span>
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5 text-center">
+                      <div className="w-10 h-10 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 flex items-center justify-center mx-auto mb-1">
+                        <Icons.Mail />
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        Enter the code sent to your registered address: <strong className="text-slate-200 font-mono">{forgotMaskedTarget}</strong>
+                      <p className="text-xs font-semibold text-slate-100">
+                        A verification code has been sent to your registered email.
                       </p>
+                      {forgotMaskedTarget && (
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          {forgotMaskedTarget}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex justify-between gap-1.5 py-1">
@@ -7129,7 +7128,7 @@
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-slate-300 font-medium">New Account Password</label>
+                        <label className="block text-slate-300 font-medium">New Password</label>
                         <button
                           type="button"
                           onClick={() => setShowForgotNewPass(!showForgotNewPass)}
@@ -7206,7 +7205,7 @@
                       ) : (
                         <Icons.Lock />
                       )}
-                      <span>{forgotLoading ? 'Updating Password...' : 'Save Password & Invalidate Old Sessions'}</span>
+                      <span>{forgotLoading ? 'Resetting Password...' : 'Reset Password'}</span>
                     </button>
                   </form>
                 )}

@@ -194,11 +194,7 @@ def send_real_sms_otp(recipient_phone: str, otp_code: str):
     from_number = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
 
     if not account_sid or not auth_token or not from_number:
-        return False, (
-            "SMS delivery service is not configured on this server. "
-            "To enable mobile SMS OTP delivery, please configure TWILIO_ACCOUNT_SID, "
-            "TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER in your environment variables."
-        )
+        return False, "SMS verification is currently unavailable. Please use Email verification."
 
     try:
         import urllib.request, urllib.parse, base64
