@@ -6957,11 +6957,11 @@
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 font-medium mb-1.5">Institutional Identifier</label>
+                      <label className="block text-slate-300 font-medium mb-1.5">Registered Gmail or Mobile Number</label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. 11242601, MMEC-CSE-101, or 11242634"
+                        placeholder="e.g. 7281041275, yourname@gmail.com, or 11242634"
                         value={forgotIdentifier}
                         onChange={e => setForgotIdentifier(e.target.value)}
                         className="w-full p-2.5 rounded-lg form-input font-mono"
@@ -6969,33 +6969,19 @@
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Delivery Channel</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setForgotDeliveryChannel('EMAIL')}
-                          className={`p-2.5 rounded-lg border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
-                            forgotDeliveryChannel === 'EMAIL'
-                              ? 'bg-brand-600/20 border-brand-500 text-brand-200 ring-1 ring-brand-500'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Verification Destination</label>
+                      <div className="p-2.5 rounded-lg border bg-brand-600/10 border-brand-500/30 text-slate-300 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-brand-200">
                           <Icons.Mail />
-                          <span>Email (Gmail)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setForgotDeliveryChannel('SMS')}
-                          className={`p-2.5 rounded-lg border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
-                            forgotDeliveryChannel === 'SMS'
-                              ? 'bg-brand-600/20 border-brand-500 text-brand-200 ring-1 ring-brand-500'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
-                          <Icons.Phone />
-                          <span>Mobile (SMS)</span>
-                        </button>
+                          <span>Registered Gmail / Email</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          Active Channel
+                        </span>
                       </div>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        Security verification code will be dispatched to your registered Gmail address.
+                      </p>
                     </div>
 
                     <div className="flex gap-2 pt-1">
@@ -7016,7 +7002,7 @@
                         ) : (
                           <Icons.Send />
                         )}
-                        <span>{forgotLoading ? 'Dispatching OTP...' : 'Send Verification Code'}</span>
+                        <span>{forgotLoading ? 'Dispatching OTP...' : 'Send Verification Code to Gmail'}</span>
                       </button>
                     </div>
                   </form>

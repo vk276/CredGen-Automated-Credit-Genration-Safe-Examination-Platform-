@@ -515,14 +515,16 @@ def init_database():
         INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
-            ('usr_admin_vivek', 'Vivek Kumar', 'vivek.admin@credgen.mmdu.ac.in', '+91 94160 12345', 'Vivek@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', None, '', 'ACTIVE'),
+            ('usr_admin_vivek', 'Vivek Kumar', 'vivek.admin@credgen.mmdu.ac.in', '+91 72810 41275', 'Vivek@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', None, '', 'ACTIVE'),
             ('usr_admin_shashank', 'Banda Shashank', 'shashank.admin@credgen.mmdu.ac.in', '+91 94160 54321', 'Shashank@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief System Architect & Exam Controller', '11242656', None, '', 'ACTIVE'),
             ('usr_teacher_1', 'Dr. Vinsha Sumra', 'vinsha.sumra@mmdu.ac.in', '+91 98765 43210', 'Teacher@2026#', 'TEACHER', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Professor & Project Guide', None, 'MMEC-CSE-101', '', 'ACTIVE'),
             ('usr_student_rahul', 'Rahul Verma', 'rahul.verma@student.mmdu.ac.in', '+91 98980 11223', 'Student@2026#', 'STUDENT', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Student Candidate', '11242601', None, '', 'ACTIVE')
         ])
         print("[DB-INIT] Default institutional users initialized.")
 
-    # Synchronize default credentials on startup with PBKDF2 hashing
+    # Synchronize default credentials on startup with PBKDF2 hashing & ensure Vivek's phone
+    cur.execute("UPDATE users SET phone = '+91 72810 41275' WHERE id = 'usr_admin_vivek'")
+    conn.commit()
     for uid, raw_pwd in [
         ('usr_admin_vivek', 'Vivek@Admin2026#'),
         ('usr_admin_shashank', 'Shashank@Admin2026#'),
@@ -1159,20 +1161,19 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             raw_otp = f"{secrets.randbelow(900000) + 100000}"
             secure_hash = hash_otp(canonical_ident, raw_otp)
 
-            # Determine destination target and mask for privacy
-            if channel == 'SMS':
-                if not u.get('phone'):
-                    conn.close()
-                    self.send_json({"success": False, "message": "This account does not have a registered mobile number on file. Please select Email verification."}, 400)
-                    return
+            # If user selected SMS and Twilio is configured, dispatch SMS;
+            # Otherwise (or if SMS is unconfigured), dispatch to registered Gmail / Email address
+            has_twilio = bool(os.environ.get("TWILIO_ACCOUNT_SID") and os.environ.get("TWILIO_AUTH_TOKEN"))
+            if channel == 'SMS' and has_twilio and u.get('phone'):
                 dest_target = u['phone']
                 clean_p = dest_target.replace(' ', '')
                 masked_target = f"{clean_p[:5]}*****{clean_p[-3:]}" if len(clean_p) >= 8 else dest_target
                 sent_ok, provider_msg = send_real_sms_otp(dest_target, raw_otp)
+                delivery_channel_used = 'SMS'
             else:
                 if not u.get('email'):
                     conn.close()
-                    self.send_json({"success": False, "message": "This account does not have a registered institutional email address on file. Please contact your administrator."}, 400)
+                    self.send_json({"success": False, "message": "This account does not have a registered Gmail / institutional email address on file. Please contact your administrator."}, 400)
                     return
                 dest_target = u['email']
                 parts = dest_target.split('@')
@@ -1182,6 +1183,7 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
                 else:
                     masked_target = dest_target
                 sent_ok, provider_msg = send_real_email_otp(dest_target, u['name'], raw_otp)
+                delivery_channel_used = 'EMAIL'
 
             # Rule 12: If provider is not configured, DO NOT fake delivery and DO NOT display OTP!
             if not sent_ok:
@@ -1205,12 +1207,12 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             conn.close()
 
             # Safe audit log (Zero passwords, Zero OTPs)
-            print(f"[AUTH-OTP] Security OTP dispatched via {channel} to {masked_target} (Valid 10 mins)")
+            print(f"[AUTH-OTP] Security OTP dispatched via {delivery_channel_used} to {masked_target} (Valid 10 mins)")
 
             # Return success WITHOUT the OTP
             self.send_json({
                 "success": True,
-                "message": f"A 6-digit verification code has been dispatched to {masked_target}.",
+                "message": f"A 6-digit verification code has been dispatched to your registered Gmail / Email ({masked_target}).",
                 "target": masked_target,
                 "expires_in": 600
             })
