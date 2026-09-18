@@ -813,54 +813,14 @@
     const INITIAL_USERS = [
       {
         id: 'usr_admin_vivek',
-        name: 'Vivek Kumar',
-        email: 'vivek.admin@credgen.mmdu.ac.in',
-        phone: '+91 94160 12345',
+        name: 'Vivek',
+        email: 'vr5655881@gmail.com',
+        phone: '7281041275',
         role: 'ADMIN',
         rollNo: '11242634',
         department: 'Examination Control Board & CSE',
         institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
         designation: 'Chief Administrator & Project Lead',
-        avatar: '',
-        status: 'ACTIVE'
-      },
-      {
-        id: 'usr_admin_shashank',
-        name: 'Banda Shashank',
-        email: 'shashank.admin@credgen.mmdu.ac.in',
-        phone: '+91 94160 54321',
-        role: 'ADMIN',
-        rollNo: '11242656',
-        department: 'Examination Control Board & CSE',
-        institution: 'Maharishi Markandeshwar (Deemed to be University), Mullana',
-        designation: 'Chief System Architect & Exam Controller',
-        avatar: '',
-        status: 'ACTIVE'
-      },
-      {
-        id: 'usr_teacher_1',
-        name: 'Dr. Vinsha Sumra',
-        email: 'vinsha.sumra@mmdu.ac.in',
-        phone: '+91 98765 43210',
-        role: 'TEACHER',
-        department: 'Computer Science & Engineering',
-        facultyId: 'MMEC-CSE-101',
-        designation: 'Professor & Project Guide',
-        avatar: '',
-        assignedSubjects: ['CS-302', 'CS-304', 'CS-306'],
-        status: 'ACTIVE'
-      },
-      {
-        id: 'usr_student_rahul',
-        name: 'Rahul Verma',
-        email: 'rahul.verma@student.mmdu.ac.in',
-        phone: '+91 98980 11223',
-        role: 'STUDENT',
-        rollNo: '11242601',
-        section: 'C',
-        semester: '6th Semester',
-        batch: '2023-2027',
-        department: 'Computer Science & Engineering',
         avatar: '',
         status: 'ACTIVE'
       }
@@ -3564,8 +3524,16 @@
         triggerToast('Studio Reset', 'All template styling, signatures, and layouts restored to factory defaults.');
       };
 
-      // User Registry Filter Tab ('active' | 'archived')
-      const [userRegistryTab, setUserRegistryTab] = useState('active');
+      // User Registry & Governance State
+      const [userRegistryTab, setUserRegistryTab] = useState('STUDENTS'); // 'STUDENTS' | 'FACULTY' | 'ADMINISTRATORS' | 'REQUESTS' | 'ARCHIVED'
+      const [regRequests, setRegRequests] = useState([]);
+      const [editingUser, setEditingUser] = useState(null);
+      const [editUserEmail, setEditUserEmail] = useState('');
+      const [editUserPhone, setEditUserPhone] = useState('');
+      const [editUserName, setEditUserName] = useState('');
+      const [editUserRollOrId, setEditUserRollOrId] = useState('');
+      const [rejectModal, setRejectModal] = useState({ open: false, requestId: null, applicantName: '', reason: '' });
+      const [pendingSubmissionNotice, setPendingSubmissionNotice] = useState(null);
 
       // Exam Creator Wizard State
       const [wizardStep, setWizardStep] = useState(1);
@@ -4602,28 +4570,138 @@
         triggerToast('Status Updated', 'Exam schedule status changed.');
       };
 
-      // Admin User Removal & Archiving
-      const deleteUser = (userId) => {
+      // Authoritative Admin User Removal & Archiving
+      const deleteUser = async (userId) => {
         const target = users.find(u => u.id === userId);
         if (target) {
-          if (target.id === 'usr_admin_vivek' || target.id === 'usr_admin_shashank') {
-            triggerToast('Action Protected', 'Chief Administrators (Vivek & Shashank) cannot be removed.');
+          if (target.id === 'usr_admin_vivek') {
+            triggerToast('Action Protected', 'Root Administrator Vivek cannot be removed.');
             return;
           }
-          const updated = users.map(u => u.id === userId ? { ...u, status: 'ARCHIVED' } : u);
-          setUsers(updated);
-          triggerToast('Account Archived', `${target.name} has been removed from active access.`);
+          try {
+            const res = await fetch(`/api/users/${userId}/archive`, { method: 'POST' });
+            const data = await res.json();
+            if (data.ok || data.success) {
+              triggerToast('Account Archived', `${target.name} has been deactivated in authoritative database.`);
+              await loadUsers();
+            } else {
+              triggerToast('Operation Failed', data.message || 'Could not archive user.');
+            }
+          } catch (e) {
+            triggerToast('Network Error', 'Failed to reach database server.');
+          }
         }
       };
 
-      // Admin User Restoration
-      const restoreUser = (userId) => {
+      // Authoritative Admin User Restoration
+      const restoreUser = async (userId) => {
         const target = users.find(u => u.id === userId);
         if (target) {
-          const updated = users.map(u => u.id === userId ? { ...u, status: 'ACTIVE' } : u);
-          setUsers(updated);
-          triggerToast('Account Restored', `${target.name} has been re-activated with full records intact.`);
-          if (window.confetti) window.confetti({ particleCount: 70, spread: 60 });
+          try {
+            const res = await fetch(`/api/users/${userId}/restore`, { method: 'POST' });
+            const data = await res.json();
+            if (data.ok || data.success) {
+              triggerToast('Account Restored', `${target.name} re-activated with full privileges.`);
+              await loadUsers();
+              if (window.confetti) window.confetti({ particleCount: 70, spread: 60 });
+            } else {
+              triggerToast('Operation Failed', data.message || 'Could not restore user.');
+            }
+          } catch (e) {
+            triggerToast('Network Error', 'Failed to reach database server.');
+          }
+        }
+      };
+
+      // Authoritative User Data Sync & Approval API Callers
+      const loadUsers = async () => {
+        try {
+          const res = await fetch('/api/users?status=ALL');
+          const data = await res.json();
+          if (data && (data.ok || data.success) && Array.isArray(data.users)) {
+            setUsers(data.users);
+          }
+        } catch (err) {
+          console.error('Failed to load authoritative users:', err);
+        }
+      };
+
+      const loadRegRequests = async () => {
+        try {
+          const res = await fetch('/api/admin/registration-requests');
+          const data = await res.json();
+          if (data && (data.ok || data.success) && Array.isArray(data.requests)) {
+            setRegRequests(data.requests);
+          }
+        } catch (err) {
+          console.error('Failed to load registration requests:', err);
+        }
+      };
+
+      const handleApproveRequest = async (targetId) => {
+        try {
+          const res = await fetch(`/api/admin/registration-requests/${targetId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await res.json();
+          if (data.ok || data.success) {
+            triggerToast('Account Approved', data.message || 'The user account has been activated.');
+            await loadRegRequests();
+            await loadUsers();
+            if (window.confetti) window.confetti({ particleCount: 90, spread: 75 });
+          } else {
+            triggerToast('Approval Error', data.message || 'Could not approve account.');
+          }
+        } catch (e) {
+          triggerToast('Network Error', 'Failed to reach authorization server.');
+        }
+      };
+
+      const handleRejectRequest = async (targetId, reason) => {
+        try {
+          const res = await fetch(`/api/admin/registration-requests/${targetId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || 'Application declined by administrator.' })
+          });
+          const data = await res.json();
+          if (data.ok || data.success) {
+            triggerToast('Account Rejected', data.message || 'Registration request declined.');
+            setRejectModal({ open: false, requestId: null, applicantName: '', reason: '' });
+            await loadRegRequests();
+            await loadUsers();
+          } else {
+            triggerToast('Rejection Error', data.message || 'Could not reject account.');
+          }
+        } catch (e) {
+          triggerToast('Network Error', 'Failed to reach authorization server.');
+        }
+      };
+
+      const handleSaveContactUpdate = async (userId) => {
+        try {
+          const res = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: editUserName.trim(),
+              email: editUserEmail.trim().toLowerCase(),
+              phone: editUserPhone.trim(),
+              rollNo: editUserRollOrId.trim(),
+              facultyId: editUserRollOrId.trim()
+            })
+          });
+          const data = await res.json();
+          if (data.ok || data.success) {
+            triggerToast('Contact Info Updated', data.message || 'User details updated in database.');
+            setEditingUser(null);
+            await loadUsers();
+          } else {
+            triggerToast('Update Failed', data.message || 'Could not update contact info.');
+          }
+        } catch (e) {
+          triggerToast('Network Error', 'Failed to reach server.');
         }
       };
 
@@ -4990,8 +5068,10 @@
         return () => { if (interval) clearInterval(interval); };
       }, [forgotTimer]);
 
-      // Production Session Verification on Mount (GET /api/auth/me)
+      // Production Session Verification on Mount (GET /api/auth/me) & Data Sync
       React.useEffect(() => {
+        loadUsers();
+        loadRegRequests();
         const token = localStorage.getItem('credgen_session_token');
         if (token) {
           fetch('/api/auth/me', {
@@ -5272,16 +5352,32 @@
 
           if (res.ok && (data.ok || data.success)) {
             const user = data.user;
-            setCurrentUser(user);
-            try {
-              localStorage.setItem('credgen_auth_user', JSON.stringify(user));
-              if (data.token) {
-                localStorage.setItem('credgen_session_token', data.token);
-              }
-            } catch (err) {}
-            setCurrentView('dashboard');
-            triggerToast('Account Registered Successfully', `Welcome to CredGen, ${user.name}. Verified session active.`);
-            if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
+            await loadUsers();
+            await loadRegRequests();
+
+            if (data.pending) {
+              // Faculty / Admin applicant: requires Vivek's approval
+              setPendingSubmissionNotice({
+                role: authRole,
+                name: user.name,
+                email: user.email,
+                message: data.message
+              });
+              setAuthFlowStep('reg_pending_notice');
+              triggerToast('Application Submitted', 'Awaiting authorization by Administrator Vivek.');
+            } else {
+              // Student: Immediately active
+              setCurrentUser(user);
+              try {
+                localStorage.setItem('credgen_auth_user', JSON.stringify(user));
+                if (data.token) {
+                  localStorage.setItem('credgen_session_token', data.token);
+                }
+              } catch (err) {}
+              setCurrentView('dashboard');
+              triggerToast('Account Registered Successfully', `Welcome to CredGen, ${user.name}. Student account is active.`);
+              if (window.confetti) window.confetti({ particleCount: 140, spread: 80 });
+            }
           } else {
             setAuthError((data.error || data.message) || 'Registration failed. Please verify credentials.');
           }
@@ -5310,98 +5406,130 @@
             </div>
           )}
 
-          {/* ADMINISTRATIVE SESSION CONSOLE MODAL */}
-          {showAdminConsoleModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200">
-              <div className="w-full max-w-lg glass-panel p-5 sm:p-7 rounded-3xl border border-indigo-500/30 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] space-y-5 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-brand-400 border border-indigo-500/30 flex items-center justify-center shadow-glow-brand">
-                      <Icons.Shield />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-slate-100 font-display">Institutional Access Console</h3>
-                      <p className="text-[11px] text-slate-400">Direct account switching for evaluation and administrative inspection</p>
-                    </div>
+          {/* ADMIN: EDIT CONTACT INFO MODAL */}
+          {editingUser && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md overflow-y-auto p-4 flex items-center justify-center animate-in fade-in duration-200">
+              <div className="w-full max-w-md glass-panel p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Update Institutional Contact Info</h3>
+                    <p className="text-[11px] text-slate-400">Editing profile credentials for {editingUser.name}</p>
                   </div>
-                  <button onClick={() => setShowAdminConsoleModal(false)} className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700/80 text-slate-400 hover:text-slate-100 flex items-center justify-center transition-all">✕</button>
+                  <button onClick={() => setEditingUser(null)} className="w-7 h-7 rounded-lg bg-slate-900 text-slate-400 hover:text-slate-200 text-xs">✕</button>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
-                    <span>Select Institutional Role:</span>
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveContactUpdate(editingUser.id); }} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Full Legal Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editUserName}
+                      onChange={e => setEditUserName(e.target.value)}
+                      className="w-full p-2.5 rounded-lg form-input"
+                    />
                   </div>
-                  <div className="grid grid-cols-1 gap-2.5">
-                    
-                    {/* Administrator Vivek */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_vivek')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-amber-950/20 border border-slate-800 hover:border-amber-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-amber">
-                      <div className="flex items-center gap-3.5">
-                        <UserAvatar user={users[0]} className="w-10 h-10 text-xs font-bold ring-2 ring-amber-500/30" />
-                        <div className="text-left text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-100 group-hover:text-amber-300 font-display text-sm">Vivek Kumar</span>
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-mono font-bold border border-amber-500/30">ADMIN</span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Chief Administrator & Project Lead (Roll: 11242634)</div>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-amber-300 text-[10px] font-bold border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
-                    </button>
 
-                    {/* Administrator Shashank */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_admin_shashank')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-indigo-950/20 border border-slate-800 hover:border-brand-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-brand">
-                      <div className="flex items-center gap-3.5">
-                        <UserAvatar user={users[1]} className="w-10 h-10 text-xs font-bold ring-2 ring-indigo-500/30" />
-                        <div className="text-left text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-100 group-hover:text-brand-300 font-display text-sm">Banda Shashank</span>
-                            <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold border border-indigo-500/30">ADMIN</span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Chief System Architect & Exam Controller (Roll: 11242656)</div>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-indigo-300 text-[10px] font-bold border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
-                    </button>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Registered Institutional Email / Gmail</label>
+                    <input
+                      type="email"
+                      required
+                      value={editUserEmail}
+                      onChange={e => setEditUserEmail(e.target.value)}
+                      className="w-full p-2.5 rounded-lg form-input font-mono"
+                    />
+                  </div>
 
-                    {/* Faculty Dr Vinsha */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_teacher_1')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-purple-950/20 border border-slate-800 hover:border-purple-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-purple">
-                      <div className="flex items-center gap-3.5">
-                        <UserAvatar user={users[2]} className="w-10 h-10 text-xs font-bold ring-2 ring-purple-500/30" />
-                        <div className="text-left text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-100 group-hover:text-purple-300 font-display text-sm">Dr. Vinsha Sumra</span>
-                            <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-mono font-bold border border-purple-500/30">FACULTY</span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Professor & Faculty Guide (ID: MMEC-CSE-101)</div>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-purple-300 text-[10px] font-bold border border-purple-500/30 group-hover:bg-purple-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
-                    </button>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Registered Mobile Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editUserPhone}
+                      onChange={e => setEditUserPhone(e.target.value)}
+                      className="w-full p-2.5 rounded-lg form-input font-mono"
+                    />
+                  </div>
 
-                    {/* Student Rahul */}
-                    <button type="button" onClick={() => selectInstitutionalSession('usr_student_rahul')} className="btn-luxury w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 to-emerald-950/20 border border-slate-800 hover:border-emerald-500/60 cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-glow-emerald">
-                      <div className="flex items-center gap-3.5">
-                        <UserAvatar user={users[3]} className="w-10 h-10 text-xs font-bold ring-2 ring-emerald-500/30" />
-                        <div className="text-left text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-100 group-hover:text-emerald-300 font-display text-sm">Rahul Verma</span>
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold border border-emerald-500/30">CANDIDATE</span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Student Candidate, B.Tech CSE (Roll: 11242601)</div>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-800/90 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-all">Access Desk ➔</span>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">
+                      {editingUser.role === 'STUDENT' ? 'University Roll Number' : (editingUser.role === 'TEACHER' || editingUser.role === 'FACULTY') ? 'Faculty ID' : 'Designation / ID'}
+                    </label>
+                    <input
+                      type="text"
+                      value={editUserRollOrId}
+                      onChange={e => setEditUserRollOrId(e.target.value)}
+                      className="w-full p-2.5 rounded-lg form-input font-mono"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setEditingUser(null)}
+                      className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-all shadow-glow-brand"
+                    >
+                      Save to Database
                     </button>
                   </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN: REJECT REGISTRATION MODAL */}
+          {rejectModal.open && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md overflow-y-auto p-4 flex items-center justify-center animate-in fade-in duration-200">
+              <div className="w-full max-w-md glass-panel p-6 rounded-2xl border border-rose-500/30 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-rose-300">Decline Registration Request</h3>
+                    <p className="text-[11px] text-slate-400">Applicant: {rejectModal.applicantName}</p>
+                  </div>
+                  <button onClick={() => setRejectModal({ open: false, requestId: null, applicantName: '', reason: '' })} className="w-7 h-7 rounded-lg bg-slate-900 text-slate-400 hover:text-slate-200 text-xs">✕</button>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800 flex justify-end">
-                  <button onClick={() => setShowAdminConsoleModal(false)} className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all">Close</button>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Reason for Declining (Recorded in Audit Trail)</label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. Unverified faculty credentials or invalid departmental authorization."
+                      value={rejectModal.reason}
+                      onChange={e => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                      className="w-full p-2.5 rounded-lg form-input text-xs"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setRejectModal({ open: false, requestId: null, applicantName: '', reason: '' })}
+                      className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRejectRequest(rejectModal.requestId, rejectModal.reason)}
+                      className="flex-1 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all shadow-md"
+                    >
+                      Confirm Rejection
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Institutional Access Console removed — Authoritative Database Authentication Enforced */}
 
           {/* AI ACADEMIC PERFORMANCE INSIGHTS MODAL */}
           {showAiInsightsModal && aiInsightsData && (
@@ -6385,38 +6513,53 @@
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 sm:gap-3">
                 
-                {/* Institutional Access Console Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowAdminConsoleModal(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 hover:to-amber-900/40 text-amber-200 border border-amber-500/30 hover:border-amber-400 text-xs font-bold flex items-center gap-1.5 transition-all shadow-glow-amber transform hover:-translate-y-0.5"
-                  title="Administrative Console (Vivek & Shashank)"
-                >
-                  <Icons.Key />
-                  <span className="hidden sm:inline">Administrative Console</span>
-                </button>
+                {/* Admin Governance Quick Link */}
+                {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'ADMINISTRATOR') && (
+                  <button
+                    type="button"
+                    onClick={() => { setCurrentView('users_mgmt'); loadRegRequests(); loadUsers(); }}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 hover:to-amber-900/40 text-amber-200 border border-amber-500/30 hover:border-amber-400 text-xs font-bold flex items-center gap-1.5 transition-all shadow-glow-amber transform hover:-translate-y-0.5 cursor-pointer"
+                    title="User Management & Registration Governance"
+                  >
+                    <Icons.Shield />
+                    <span className="hidden sm:inline">User Governance</span>
+                    {regRequests.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-mono font-black animate-pulse">
+                        {regRequests.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {!currentUser && (
+                  <button
+                    type="button"
+                    onClick={() => { setAuthFlowStep('login'); setAuthError(''); setCurrentView('auth_portal'); }}
+                    className="px-4 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-glow-brand cursor-pointer"
+                  >
+                    <Icons.Lock />
+                    <span>Sign In</span>
+                  </button>
+                )}
 
                 {currentUser ? (
                   <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
                     
                     {/* Active User Role Badge Pill */}
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminConsoleModal(true)}
+                    <div
                       className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-md ${
                         currentUser.role === 'ADMIN'
-                          ? 'bg-gradient-to-r from-rose-950/50 via-slate-900 to-amber-950/40 text-amber-300 border-amber-500/40 hover:border-amber-400 shadow-glow-amber'
-                          : currentUser.role === 'TEACHER'
-                          ? 'bg-gradient-to-r from-indigo-950/50 via-slate-900 to-purple-950/40 text-purple-300 border-purple-500/40 hover:border-purple-400 shadow-glow-purple'
-                          : 'bg-gradient-to-r from-emerald-950/50 via-slate-900 to-cyan-950/40 text-emerald-300 border-emerald-500/40 hover:border-emerald-400 shadow-glow-emerald'
+                          ? 'bg-gradient-to-r from-rose-950/50 via-slate-900 to-amber-950/40 text-amber-300 border-amber-500/40 shadow-glow-amber'
+                          : (currentUser.role === 'TEACHER' || currentUser.role === 'FACULTY')
+                          ? 'bg-gradient-to-r from-indigo-950/50 via-slate-900 to-purple-950/40 text-purple-300 border-purple-500/40 shadow-glow-purple'
+                          : 'bg-gradient-to-r from-emerald-950/50 via-slate-900 to-cyan-950/40 text-emerald-300 border-emerald-500/40 shadow-glow-emerald'
                       }`}
                     >
                       <UserAvatar user={currentUser} className="w-6 h-6 text-[10px] font-black" />
                       <span className="hidden md:inline">
-                        {currentUser.name} ({currentUser.role === 'ADMIN' ? 'Admin' : currentUser.role === 'TEACHER' ? 'Faculty' : 'Student'})
+                        {currentUser.name} ({currentUser.role === 'ADMIN' ? 'Admin' : (currentUser.role === 'TEACHER' || currentUser.role === 'FACULTY') ? 'Faculty' : 'Student'})
                       </span>
-                      <span className="text-[10px] text-slate-400">▾</span>
-                    </button>
+                    </div>
 
                     <button
                       type="button"
@@ -7227,6 +7370,41 @@
                   </div>
                 )}
 
+                {/* REGISTRATION SUBMITTED: PENDING APPROVAL NOTICE */}
+                {authFlowStep === 'reg_pending_notice' && pendingSubmissionNotice && (
+                  <div className="space-y-4 text-center py-2 animate-in fade-in">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-glow-amber">
+                      <Icons.Shield />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-100 font-display">Institutional Registration Submitted</h3>
+                      <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-sm mx-auto">
+                        Your application for <span className="text-amber-300 font-semibold">{pendingSubmissionNotice.role === 'TEACHER' ? 'Faculty' : 'Administrator'}</span> access has been submitted for <strong className="text-slate-200">{pendingSubmissionNotice.name}</strong>.
+                      </p>
+                      <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/30 text-amber-200/90 text-xs mt-3 leading-relaxed text-left">
+                        <div className="font-semibold text-amber-300 mb-1 flex items-center gap-1.5">
+                          <Icons.Clock />
+                          <span>Pending Administrator Review</span>
+                        </div>
+                        In accordance with institutional security policies, Faculty and Administrator accounts must be authorized by Chief Administrator Vivek before portal access is activated.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthFlowStep('login');
+                        setAuthError('');
+                        setAuthIdentifier(pendingSubmissionNotice.email);
+                        setAuthPass('');
+                      }}
+                      className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Icons.ArrowLeft />
+                      <span>Return to Institutional Sign In</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* REGISTER STEP 1 (DIRECT E-COMMERCE / UNIVERSITY ONBOARDING) */}
                 {authFlowStep === 'reg_step1' && (
                   <form onSubmit={handleDirectRegister} className="space-y-3 text-xs">
@@ -7266,11 +7444,11 @@
                       </div>
                     </div>
                     <div>
-                      <label className="block text-slate-300 font-medium mb-1">{authRole === 'STUDENT' ? 'University Roll Number' : authRole === 'TEACHER' ? 'Faculty ID' : 'Administrative Secret Key'}</label>
+                      <label className="block text-slate-300 font-medium mb-1">{authRole === 'STUDENT' ? 'University Roll Number' : authRole === 'TEACHER' ? 'Faculty ID' : 'Administrative Department / Office'}</label>
                       <input
                         type="text"
                         required
-                        placeholder={authRole === 'STUDENT' ? '11242634' : 'MMEC-CSE-101'}
+                        placeholder={authRole === 'STUDENT' ? '11242634' : authRole === 'TEACHER' ? 'MMEC-CSE-101' : 'Examination Control Board'}
                         value={regRollOrId}
                         onChange={e => setRegRollOrId(e.target.value)}
                         className="w-full p-2.5 rounded-lg form-input font-mono"
@@ -7740,100 +7918,271 @@
                 {/* USER REGISTRY & LIFECYCLE MANAGEMENT (ADMIN) */}
                 {currentView === 'users_mgmt' && (
                   <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5 animate-in fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                       <div>
-                        <h1 className="text-lg font-bold text-slate-100">User Identity & Access Lifecycle Governance</h1>
-                        <p className="text-xs text-slate-400">Manage, deactivate, remove, or re-add institutional accounts with full records integrity.</p>
+                        <div className="flex items-center gap-2">
+                          <h1 className="text-xl font-bold text-slate-100 font-display">Authoritative User Directory & Access Governance</h1>
+                          <span className="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-mono font-semibold border border-brand-500/30">
+                            SQLITE PERSISTENT
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Single source of truth. Manage Students, Faculty, Administrators, review registration requests, and update contact credentials.
+                        </p>
                       </div>
 
-                      {/* Active vs Archived Tab Switcher */}
-                      <div className="flex items-center gap-1 p-1 bg-slate-900 rounded-lg border border-slate-800 text-xs font-medium">
+                      {/* Refresh Button */}
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setUserRegistryTab('active')}
-                          className={`px-3 py-1.5 rounded transition-all flex items-center gap-1.5 ${
-                            userRegistryTab === 'active' ? 'bg-slate-800 text-brand-300 font-semibold border border-slate-700' : 'text-slate-400 hover:text-slate-200'
-                          }`}
+                          onClick={() => { loadUsers(); loadRegRequests(); triggerToast('Directory Refreshed', 'Synced with authoritative database.'); }}
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-all"
                         >
-                          <Icons.User />
-                          <span>Active Accounts ({users.filter(u => u.status !== 'ARCHIVED').length})</span>
-                        </button>
-                        <button
-                          onClick={() => setUserRegistryTab('archived')}
-                          className={`px-3 py-1.5 rounded transition-all flex items-center gap-1.5 ${
-                            userRegistryTab === 'archived' ? 'bg-slate-800 text-rose-300 font-semibold border border-slate-700' : 'text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          <Icons.Trash />
-                          <span>Archived / Removed ({users.filter(u => u.status === 'ARCHIVED').length})</span>
+                          <Icons.RotateCcw />
+                          <span>Sync Database</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Users Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {users
-                        .filter(u => userRegistryTab === 'active' ? u.status !== 'ARCHIVED' : u.status === 'ARCHIVED')
-                        .map(u => (
-                          <div key={u.id} className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between gap-3 text-xs">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-3">
-                                <UserAvatar user={u} className="w-10 h-10 text-sm font-bold shrink-0" />
-                                <div>
-                                  <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-                                    <span>{u.name}</span>
-                                    {u.role === 'ADMIN' && <span className="text-[10px] px-1.5 py-0.2 rounded bg-brand-500/20 text-brand-300 font-mono font-semibold">ADMIN</span>}
+                    {/* 5-Tier Tab Switcher */}
+                    <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-900/90 rounded-xl border border-slate-800 text-xs font-semibold">
+                      <button
+                        onClick={() => setUserRegistryTab('STUDENTS')}
+                        className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                          userRegistryTab === 'STUDENTS'
+                            ? 'bg-slate-800 text-cyan-300 shadow-sm border border-slate-700'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icons.User />
+                        <span>Students ({users.filter(u => u.role === 'STUDENT' && u.status !== 'ARCHIVED').length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => setUserRegistryTab('FACULTY')}
+                        className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                          userRegistryTab === 'FACULTY'
+                            ? 'bg-slate-800 text-purple-300 shadow-sm border border-slate-700'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icons.GraduationCap />
+                        <span>Faculty ({users.filter(u => (u.role === 'TEACHER' || u.role === 'FACULTY') && u.status !== 'ARCHIVED').length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => setUserRegistryTab('ADMINISTRATORS')}
+                        className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                          userRegistryTab === 'ADMINISTRATORS'
+                            ? 'bg-slate-800 text-amber-300 shadow-sm border border-slate-700'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icons.Shield />
+                        <span>Administrators ({users.filter(u => (u.role === 'ADMIN' || u.role === 'ADMINISTRATOR') && u.status !== 'ARCHIVED').length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => setUserRegistryTab('REQUESTS')}
+                        className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 relative ${
+                          userRegistryTab === 'REQUESTS'
+                            ? 'bg-slate-800 text-amber-400 shadow-sm border border-amber-500/40'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icons.Clock />
+                        <span>Registration Requests</span>
+                        {regRequests.length > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-[10px]">
+                            {regRequests.length}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setUserRegistryTab('ARCHIVED')}
+                        className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                          userRegistryTab === 'ARCHIVED'
+                            ? 'bg-slate-800 text-rose-300 shadow-sm border border-slate-700'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icons.Trash />
+                        <span>Archived / Deactivated ({users.filter(u => u.status === 'ARCHIVED').length})</span>
+                      </button>
+                    </div>
+
+                    {/* VIEW: REGISTRATION REQUESTS TAB */}
+                    {userRegistryTab === 'REQUESTS' && (
+                      <div className="space-y-4">
+                        {regRequests.length === 0 ? (
+                          <div className="p-12 text-center glass-panel rounded-2xl border border-slate-800 space-y-2">
+                            <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                              <Icons.ShieldCheck />
+                            </div>
+                            <h4 className="text-sm font-semibold text-slate-300">No Pending Registration Requests</h4>
+                            <p className="text-xs text-slate-500 max-w-md mx-auto">
+                              All applicant accounts have been reviewed. When new Faculty or Administrators register, their identity verification requests will appear here for Administrator Vivek's approval.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3.5">
+                            {regRequests.map(req => (
+                              <div key={req.id} className="p-4 rounded-xl bg-slate-900/90 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                  <UserAvatar user={req} className="w-12 h-12 text-sm font-bold shrink-0 ring-2 ring-amber-500/30" />
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-slate-100 text-sm">{req.name}</span>
+                                      <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/30">
+                                        PENDING {req.role === 'TEACHER' ? 'FACULTY' : req.role}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                                      <span>Email: <strong className="text-slate-200 font-mono">{req.email}</strong></span>
+                                      <span>Mobile: <strong className="text-slate-200 font-mono">{req.phone || 'N/A'}</strong></span>
+                                      {req.faculty_id && <span>Faculty ID: <strong className="text-slate-200 font-mono">{req.faculty_id}</strong></span>}
+                                      {req.department && <span>Dept: <strong className="text-slate-200">{req.department}</strong></span>}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">Submitted: {req.created_at || 'Recently'}</div>
                                   </div>
-                                  <div className="text-slate-400 text-[11px] font-mono">{u.email}</div>
-                                  <div className="text-[10px] text-slate-500 mt-0.5">{u.designation || `Roll No: ${u.rollNo || 'N/A'}`}</div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    onClick={() => handleApproveRequest(req.id)}
+                                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-glow-emerald flex items-center gap-1.5 transition-all cursor-pointer"
+                                  >
+                                    <Icons.CheckCircle />
+                                    <span>Approve Account</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setRejectModal({ open: true, requestId: req.id, applicantName: req.name, reason: '' })}
+                                    className="px-3.5 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                  >
+                                    <Icons.Trash />
+                                    <span>Reject</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* VIEW: USER ROSTERS (STUDENTS, FACULTY, ADMINISTRATORS, ARCHIVED) */}
+                    {userRegistryTab !== 'REQUESTS' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {users
+                          .filter(u => {
+                            if (userRegistryTab === 'ARCHIVED') return u.status === 'ARCHIVED';
+                            if (u.status === 'ARCHIVED') return false;
+                            if (userRegistryTab === 'STUDENTS') return u.role === 'STUDENT';
+                            if (userRegistryTab === 'FACULTY') return u.role === 'TEACHER' || u.role === 'FACULTY';
+                            if (userRegistryTab === 'ADMINISTRATORS') return u.role === 'ADMIN' || u.role === 'ADMINISTRATOR';
+                            return true;
+                          })
+                          .map(u => (
+                            <div key={u.id} className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between gap-3 text-xs">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-3">
+                                  <UserAvatar user={u} className="w-10 h-10 text-sm font-bold shrink-0" />
+                                  <div>
+                                    <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                                      <span>{u.name}</span>
+                                      {u.id === 'usr_admin_vivek' && (
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold border border-amber-500/30">
+                                          ROOT ADMIN
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-slate-400 text-[11px] font-mono mt-0.5">{u.email}</div>
+                                    <div className="text-slate-400 text-[11px] font-mono">{u.phone || 'No phone recorded'}</div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">
+                                      {u.role === 'STUDENT' ? `Roll No: ${u.roll_no || u.rollNo || 'N/A'}` : (u.role === 'TEACHER' || u.role === 'FACULTY') ? `Faculty ID: ${u.faculty_id || u.facultyId || 'N/A'}` : (u.designation || 'Institutional Administrator')}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                    u.status === 'ACTIVE'
+                                      ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                                      : u.status === 'PENDING'
+                                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                      : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                                  }`}>
+                                    {u.status}
+                                  </span>
+                                  <span className="text-[9px] font-mono text-slate-500 uppercase">{u.role}</span>
                                 </div>
                               </div>
 
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
-                                u.status === 'ARCHIVED' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700'
-                              }`}>
-                                {u.status === 'ARCHIVED' ? 'DEACTIVATED' : u.role}
-                              </span>
-                            </div>
-
-                            {/* Action Buttons for Administrator */}
-                            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                              <span className="text-[10px] font-mono text-slate-500">ID: {u.id}</span>
-                              
-                              {u.status !== 'ARCHIVED' ? (
-                                u.id !== 'usr_admin_vivek' && u.id !== 'usr_admin_shashank' ? (
+                              {/* Card Action Bar */}
+                              <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                                <span className="text-[10px] font-mono text-slate-500">ID: {u.id}</span>
+                                <div className="flex items-center gap-1.5">
+                                  {/* Update Contact Info Button */}
                                   <button
-                                    onClick={() => deleteUser(u.id)}
-                                    className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors"
+                                    onClick={() => {
+                                      setEditingUser(u);
+                                      setEditUserName(u.name || '');
+                                      setEditUserEmail(u.email || '');
+                                      setEditUserPhone(u.phone || '');
+                                      setEditUserRollOrId(u.roll_no || u.rollNo || u.faculty_id || u.facultyId || '');
+                                    }}
+                                    className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Edit Email & Mobile"
                                   >
-                                    <Icons.Trash />
-                                    <span>Remove Account</span>
+                                    <Icons.Edit />
+                                    <span>Edit Contact</span>
                                   </button>
-                                ) : (
-                                  <span className="text-[10px] text-slate-500 font-medium italic">Root Administrator</span>
-                                )
-                              ) : (
-                                <button
-                                  onClick={() => restoreUser(u.id)}
-                                  className="px-2.5 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                                >
-                                  <Icons.RotateCcw />
-                                  <span>Re-Add / Restore Account</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
 
-                      {users.filter(u => userRegistryTab === 'active' ? u.status !== 'ARCHIVED' : u.status === 'ARCHIVED').length === 0 && (
-                        <div className="col-span-2 p-8 text-center glass-panel rounded-xl border border-slate-800 text-slate-500 text-xs">
-                          {userRegistryTab === 'active' ? 'No active accounts found.' : 'No archived accounts. Removed accounts will appear here and can be restored anytime.'}
-                        </div>
-                      )}
-                    </div>
+                                  {u.status !== 'ARCHIVED' ? (
+                                    u.id !== 'usr_admin_vivek' ? (
+                                      <button
+                                        onClick={() => deleteUser(u.id)}
+                                        className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                                      >
+                                        <Icons.Trash />
+                                        <span>Deactivate</span>
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] text-amber-400/80 font-medium italic px-2">Primary Administrator</span>
+                                    )
+                                  ) : (
+                                    <button
+                                      onClick={() => restoreUser(u.id)}
+                                      className="px-2.5 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                    >
+                                      <Icons.RotateCcw />
+                                      <span>Restore Account</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                        {users.filter(u => {
+                          if (userRegistryTab === 'ARCHIVED') return u.status === 'ARCHIVED';
+                          if (u.status === 'ARCHIVED') return false;
+                          if (userRegistryTab === 'STUDENTS') return u.role === 'STUDENT';
+                          if (userRegistryTab === 'FACULTY') return u.role === 'TEACHER' || u.role === 'FACULTY';
+                          if (userRegistryTab === 'ADMINISTRATORS') return u.role === 'ADMIN' || u.role === 'ADMINISTRATOR';
+                          return true;
+                        }).length === 0 && (
+                          <div className="col-span-2 p-10 text-center glass-panel rounded-2xl border border-slate-800 text-slate-500 text-xs">
+                            No accounts found in this category.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* INSTITUTIONAL SUPPORT DESK, GRIEVANCES & FEEDBACK INBOX */}
+                                {/* INSTITUTIONAL SUPPORT DESK, GRIEVANCES & FEEDBACK INBOX */}
                 {currentView === 'support_inbox' && (
                   <div className="space-y-6 animate-in fade-in">
                     {/* Header Banner */}

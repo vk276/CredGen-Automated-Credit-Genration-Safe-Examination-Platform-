@@ -244,14 +244,10 @@ def verify_password(raw_password: str, stored_password: str) -> bool:
     valid, _ = verify_and_upgrade_password(raw_password, stored_password)
     return bool(valid)
 
-def find_user_by_identifier(cursor, raw_identifier: str):
+def find_user_by_identifier(cursor, raw_identifier: str, only_active: bool = False):
     """
-    Universally lookup active user by:
-    - Student Roll Number (exact, whitespace-trimmed, digits-only)
-    - Faculty ID (case-insensitive, normalized dashes/slashes/spaces)
-    - Institutional Email (case-insensitive, trimmed)
-    - Registered Mobile/Phone Number (10 digits, +91, with/without spaces/dashes)
-    - Primary User ID (e.g. usr_student_rahul, usr_admin_vivek)
+    Universally lookup user across roll number, faculty ID, institutional email, phone, or ID.
+    If only_active=True, restricts results to status='ACTIVE'.
     """
     if not raw_identifier:
         return None
@@ -259,9 +255,10 @@ def find_user_by_identifier(cursor, raw_identifier: str):
     if not raw:
         return None
     raw_lower = raw.lower()
+    status_clause = " AND status = 'ACTIVE'" if only_active else ""
     
     # 1. Exact match on email, phone, roll_no, faculty_id, or id
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT * FROM users
         WHERE (
             LOWER(email) = ? OR 
@@ -269,45 +266,45 @@ def find_user_by_identifier(cursor, raw_identifier: str):
             roll_no = ? OR 
             LOWER(faculty_id) = ? OR 
             id = ?
-        ) AND status = 'ACTIVE'
+        ){status_clause}
     """, (raw_lower, raw, raw, raw_lower, raw))
     row = cursor.fetchone()
     if row:
         return dict(row)
 
-    # 2. Case-insensitive / normalized faculty ID (e.g. mmec-cse-101 vs MMEC-CSE-101, hyphens vs underscores/spaces/slashes)
+    # 2. Case-insensitive / normalized faculty ID
     norm_faculty = raw_lower.replace(' ', '-').replace('/', '-').replace('_', '-')
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT * FROM users
         WHERE LOWER(REPLACE(REPLACE(REPLACE(COALESCE(faculty_id, ''), ' ', '-'), '/', '-'), '_', '-')) = ?
-          AND status = 'ACTIVE'
+          {status_clause}
     """, (norm_faculty,))
     row = cursor.fetchone()
     if row:
         return dict(row)
 
-    # 3. Phone number matching (match by last 10 digits or normalized digits)
+    # 3. Phone number matching (match by last 10 digits)
     digits = ''.join(c for c in raw if c.isdigit())
     if len(digits) >= 10:
         last10 = digits[-10:]
-        cursor.execute("SELECT * FROM users WHERE status = 'ACTIVE'")
+        cursor.execute(f"SELECT * FROM users WHERE 1=1{status_clause}")
         for r in cursor.fetchall():
             u_phone = r['phone'] or ''
             u_digits = ''.join(c for c in u_phone if c.isdigit())
             if u_digits.endswith(last10):
                 return dict(r)
 
-    # 4. Roll number normalized (digits only comparison)
+    # 4. Roll number normalized (digits only)
     if digits and len(digits) >= 6:
-        cursor.execute("SELECT * FROM users WHERE status = 'ACTIVE'")
+        cursor.execute(f"SELECT * FROM users WHERE 1=1{status_clause}")
         for r in cursor.fetchall():
             u_roll = r['roll_no'] or ''
             u_roll_digits = ''.join(c for c in u_roll if c.isdigit())
             if u_roll_digits and u_roll_digits == digits:
                 return dict(r)
 
-    # 5. Match by full name if entered accurately
-    cursor.execute("SELECT * FROM users WHERE LOWER(name) = ? AND status = 'ACTIVE'", (raw_lower,))
+    # 5. Match by full name
+    cursor.execute(f"SELECT * FROM users WHERE LOWER(name) = ?{status_clause}", (raw_lower,))
     row = cursor.fetchone()
     if row:
         return dict(row)
@@ -346,7 +343,7 @@ def init_database():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # 1. Users Table
+    # 1. Users Table (with real verification & lifecycle status)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -362,9 +359,20 @@ def init_database():
         faculty_id TEXT,
         avatar TEXT,
         status TEXT DEFAULT 'ACTIVE',
+        email_verified INTEGER DEFAULT 0,
+        phone_verified INTEGER DEFAULT 0,
+        rejection_reason TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    cur.execute("PRAGMA table_info(users)")
+    u_cols = {c[1]: c for c in cur.fetchall()}
+    if 'email_verified' not in u_cols:
+        cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
+    if 'phone_verified' not in u_cols:
+        cur.execute("ALTER TABLE users ADD COLUMN phone_verified INTEGER DEFAULT 0")
+    if 'rejection_reason' not in u_cols:
+        cur.execute("ALTER TABLE users ADD COLUMN rejection_reason TEXT DEFAULT ''")
 
     # 1b. Production Security Sessions Table
     cur.execute("""
@@ -508,35 +516,45 @@ def init_database():
     )
     """)
 
-    # Seed Initial Data if empty
-    cur.execute("SELECT COUNT(*) as count FROM users")
-    if cur.fetchone()["count"] == 0:
-        cur.executemany("""
-        INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, [
-            ('usr_admin_vivek', 'Vivek Kumar', 'vivek.admin@credgen.mmdu.ac.in', '+91 72810 41275', 'Vivek@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', None, '', 'ACTIVE'),
-            ('usr_admin_shashank', 'Banda Shashank', 'shashank.admin@credgen.mmdu.ac.in', '+91 94160 54321', 'Shashank@Admin2026#', 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief System Architect & Exam Controller', '11242656', None, '', 'ACTIVE'),
-            ('usr_teacher_1', 'Dr. Vinsha Sumra', 'vinsha.sumra@mmdu.ac.in', '+91 98765 43210', 'Teacher@2026#', 'TEACHER', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Professor & Project Guide', None, 'MMEC-CSE-101', '', 'ACTIVE'),
-            ('usr_student_rahul', 'Rahul Verma', 'rahul.verma@student.mmdu.ac.in', '+91 98980 11223', 'Student@2026#', 'STUDENT', 'Computer Science & Engineering', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Student Candidate', '11242601', None, '', 'ACTIVE')
-        ])
-        print("[DB-INIT] Default institutional users initialized.")
+        # MASTER ACCOUNT SPECIFICATION: Keep ONLY Vivek as the Active Administrator
+    # Purge any legacy demo accounts
+    cur.execute("DELETE FROM users WHERE id IN ('usr_admin_shashank', 'usr_teacher_1', 'usr_student_rahul')")
 
-    # Synchronize default credentials on startup with PBKDF2 hashing & ensure Vivek's phone
-    cur.execute("UPDATE users SET phone = '+91 72810 41275' WHERE id = 'usr_admin_vivek'")
+    vivek_pwd_hash = hash_password('Vivek@Admin2026#')
+    cur.execute("SELECT id FROM users WHERE id = 'usr_admin_vivek' OR LOWER(email) = 'vr5655881@gmail.com'")
+    vivek_row = cur.fetchone()
+    if vivek_row:
+        cur.execute("""
+        UPDATE users SET
+            id = 'usr_admin_vivek',
+            name = 'Vivek',
+            email = 'vr5655881@gmail.com',
+            phone = '7281041275',
+            role = 'ADMIN',
+            status = 'ACTIVE',
+            department = 'Examination Control Board & CSE',
+            institution = 'Maharishi Markandeshwar (Deemed to be University), Mullana',
+            designation = 'Chief Administrator & Project Lead',
+            roll_no = '11242634',
+            email_verified = 1,
+            phone_verified = 1
+        WHERE id = ?
+        """, (vivek_row['id'],))
+        # Ensure password hash is PBKDF2
+        cur.execute("SELECT password FROM users WHERE id = 'usr_admin_vivek'")
+        p_row = cur.fetchone()
+        if p_row and not p_row['password'].startswith("pbkdf2:sha256:"):
+            cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_vivek'", (vivek_pwd_hash,))
+    else:
+        cur.execute("""
+        INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status, email_verified, phone_verified)
+        VALUES ('usr_admin_vivek', 'Vivek', 'vr5655881@gmail.com', '7281041275', ?, 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', NULL, '', 'ACTIVE', 1, 1)
+        """, (vivek_pwd_hash,))
+
+    # Ensure no demo users remain
+    cur.execute("DELETE FROM users WHERE id NOT LIKE 'usr_%' OR id IN ('usr_admin_shashank', 'usr_teacher_1', 'usr_student_rahul')")
     conn.commit()
-    for uid, raw_pwd in [
-        ('usr_admin_vivek', 'Vivek@Admin2026#'),
-        ('usr_admin_shashank', 'Shashank@Admin2026#'),
-        ('usr_teacher_1', 'Teacher@2026#'),
-        ('usr_student_rahul', 'Student@2026#')
-    ]:
-        cur.execute("SELECT password FROM users WHERE id = ?", (uid,))
-        r = cur.fetchone()
-        if r:
-            cur_pwd = r["password"]
-            if not cur_pwd.startswith("pbkdf2:sha256:"):
-                cur.execute("UPDATE users SET password = ? WHERE id = ?", (hash_password(raw_pwd), uid))
+    print("[DB-INIT] Master user database synchronized. Sole Administrator: Vivek (vr5655881@gmail.com).")
 
     cur.execute("SELECT COUNT(*) as count FROM questions")
     if cur.fetchone()["count"] == 0:
@@ -956,18 +974,58 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             })
             return
 
-        # 3. Users Management
+        # 3. Authoritative Users Management API
         if path == '/api/users':
-            status_filter = query.get('status', ['ACTIVE'])[0]
+            status_filter = query.get('status', ['ALL'])[0].upper()
+            role_filter = query.get('role', ['ALL'])[0].upper()
+            search_query = query.get('search', [''])[0].strip().lower()
+
             conn = get_db_connection()
             cur = conn.cursor()
-            if status_filter == 'ALL':
-                cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status FROM users ORDER BY name ASC")
-            else:
-                cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status FROM users WHERE status = ? ORDER BY name ASC", (status_filter,))
+            sql = """
+            SELECT id, name, email, phone, role, department, institution, designation, 
+                   roll_no, faculty_id, avatar, status, email_verified, phone_verified, 
+                   rejection_reason, created_at
+            FROM users WHERE 1=1
+            """
+            params = []
+            if status_filter != 'ALL':
+                sql += " AND status = ?"
+                params.append(status_filter)
+            if role_filter != 'ALL':
+                if role_filter in ('TEACHER', 'FACULTY'):
+                    sql += " AND role IN ('TEACHER', 'FACULTY')"
+                elif role_filter in ('ADMIN', 'ADMINISTRATOR'):
+                    sql += " AND role IN ('ADMIN', 'ADMINISTRATOR')"
+                else:
+                    sql += " AND role = ?"
+                    params.append(role_filter)
+            if search_query:
+                sql += " AND (LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR phone LIKE ? OR roll_no LIKE ? OR LOWER(faculty_id) LIKE ?)"
+                like_p = f"%{search_query}%"
+                params.extend([like_p, like_p, like_p, like_p, like_p])
+
+            sql += " ORDER BY role ASC, name ASC"
+            cur.execute(sql, params)
             rows = [dict(r) for r in cur.fetchall()]
             conn.close()
             self.send_json({"success": True, "users": rows, "count": len(rows)})
+            return
+
+        # 3b. Registration Requests Endpoint (Faculty & Admin Pending Requests)
+        if path == '/api/admin/registration-requests':
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT id, name, email, phone, role, department, institution, designation, 
+                   roll_no, faculty_id, status, email_verified, phone_verified, rejection_reason, created_at
+            FROM users 
+            WHERE status = 'PENDING' AND role IN ('TEACHER', 'FACULTY', 'ADMIN', 'ADMINISTRATOR')
+            ORDER BY created_at DESC
+            """)
+            rows = [dict(r) for r in cur.fetchall()]
+            conn.close()
+            self.send_json({"success": True, "requests": rows, "count": len(rows)})
             return
 
         # 4. Question Bank
@@ -1121,6 +1179,49 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         body = self.read_json_body()
+
+        # 0. Password Recovery Account Discovery & Verification (Zero Leakage)
+        if path == '/api/auth/recovery/identify' or path == '/api/auth/recovery/lookup':
+            identifier = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
+            if not identifier:
+                self.send_json({"success": False, "message": "Identifier is required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            u = find_user_by_identifier(cur, identifier, only_active=True)
+            conn.close()
+
+            if not u:
+                self.send_json({"success": False, "message": f"No active account found for identifier '{identifier}'."}, 404)
+                return
+
+            email = u.get("email") or ""
+            phone = u.get("phone") or ""
+            masked_email = ""
+            if email and "@" in email:
+                p_user, p_domain = email.split("@", 1)
+                masked_email = f"{p_user[0]}***{p_user[-1] if len(p_user) > 1 else ''}@{p_domain}"
+            masked_phone = ""
+            if phone:
+                clean_p = phone.replace(" ", "").replace("-", "")
+                masked_phone = f"{clean_p[:2]}******{clean_p[-4:]}" if len(clean_p) >= 10 else f"***{clean_p[-2:]}"
+
+            self.send_json({
+                "success": True,
+                "found": True,
+                "user": {
+                    "id": u["id"],
+                    "name": u["name"],
+                    "role": u["role"],
+                    "department": u.get("department", ""),
+                    "masked_email": masked_email,
+                    "masked_phone": masked_phone
+                },
+                "masked_email": masked_email,
+                "masked_phone": masked_phone
+            })
+            return
 
         # 1. Real OTP Generation & External Dispatch (Password Recovery & Identity Verification)
         if path == '/api/auth/send-otp' or path == '/api/auth/send-real-otp' or path == '/api/send-real-otp':
@@ -1371,22 +1472,44 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             conn = get_db_connection()
             cur = conn.cursor()
             
-            user_row = find_user_by_identifier(cur, identifier)
+            user_row = find_user_by_identifier(cur, identifier, only_active=False)
 
             if not user_row:
                 conn.close()
-                self.send_json({"success": False, "message": "No active account found with the provided identifier."}, 401)
+                self.send_json({"success": False, "message": "No account found with the provided identifier. Please verify your credentials or register."}, 401)
                 return
 
             u = dict(user_row)
 
-            # Role validation
-            if role and u["role"] != role:
+            # Strict Status Verification
+            if u.get("status") == "PENDING":
                 conn.close()
                 self.send_json({
                     "success": False,
-                    "message": f"Role mismatch: This account is registered as {u['role']}. Please select the {u['role']} role tab."
+                    "message": "Account pending administrator approval. Your application has been submitted and is awaiting activation by Administrator Vivek."
                 }, 403)
+                return
+
+            if u.get("status") == "REJECTED":
+                reason = u.get("rejection_reason") or "Application was declined by the administrator."
+                conn.close()
+                self.send_json({
+                    "success": False,
+                    "message": f"Account registration request was rejected by the administrator. ({reason})"
+                }, 403)
+                return
+
+            if u.get("status") == "ARCHIVED":
+                conn.close()
+                self.send_json({
+                    "success": False,
+                    "message": "This institutional account has been deactivated. Please contact Administrator Vivek."
+                }, 403)
+                return
+
+            if u.get("status") != "ACTIVE":
+                conn.close()
+                self.send_json({"success": False, "message": "Account is not in active status."}, 403)
                 return
 
             # Password verification with transparent auto-upgrade to PBKDF2
@@ -1443,6 +1566,259 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             self.send_json({"success": True, "message": "Signed out safely."})
             return
 
+                # -------------------------------------------------------------
+        # Registration Contact Verification: Send OTP
+        # -------------------------------------------------------------
+        if path == '/api/auth/register/send-otp':
+            ident = (body.get('identifier') or body.get('email') or body.get('phone') or '').strip()
+            channel = (body.get('channel') or 'EMAIL').upper()
+            purpose = (body.get('purpose') or ('REG_EMAIL_VERIFY' if channel == 'EMAIL' else 'REG_PHONE_VERIFY')).upper()
+            target_name = body.get('name') or 'Candidate'
+
+            if not ident:
+                self.send_json({"success": False, "message": "Email address or mobile number is required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            # Check if active account already exists with this contact
+            cur.execute("SELECT id, status FROM users WHERE (LOWER(email) = LOWER(?) OR phone = ?)", (ident, ident))
+            existing = cur.fetchone()
+            if existing and existing['status'] == 'ACTIVE':
+                conn.close()
+                self.send_json({"success": False, "message": "An active account with this email or mobile already exists. Please sign in instead."}, 409)
+                return
+
+            # Rate limiting: max 3 requests per 10 minutes
+            cur.execute("SELECT COUNT(*) as cnt FROM otps WHERE identifier = ? AND created_at > datetime('now', '-10 minutes')", (ident,))
+            if cur.fetchone()["cnt"] >= 3:
+                conn.close()
+                self.send_json({"success": False, "message": "Too many verification requests. Please wait 10 minutes before requesting a new code."}, 429)
+                return
+
+            raw_otp = f"{secrets.randbelow(900000) + 100000}"
+            secure_hash = hash_otp(ident, raw_otp)
+
+            if channel == 'SMS':
+                clean_p = ident.replace(' ', '')
+                masked_target = f"{clean_p[:5]}*****{clean_p[-3:]}" if len(clean_p) >= 8 else clean_p
+                sent_ok, provider_msg = send_real_sms_otp(ident, raw_otp)
+            else:
+                parts = ident.split('@')
+                masked_target = f"{parts[0][0]}***@{parts[1]}" if len(parts) == 2 else ident
+                sent_ok, provider_msg = send_real_email_otp(ident, target_name, raw_otp)
+
+            if not sent_ok:
+                conn.close()
+                self.send_json({"success": False, "message": provider_msg, "provider_configured": False}, 503)
+                return
+
+            cur.execute("UPDATE otps SET verified = 2 WHERE identifier = ? AND purpose = ?", (ident, purpose))
+            cur.execute("""
+            INSERT INTO otps (identifier, otp_hash, otp_code, purpose, attempts, verified, expires_at)
+            VALUES (?, ?, '', ?, 0, 0, datetime('now', '+10 minutes'))
+            """, (ident, secure_hash, purpose))
+            conn.commit()
+            conn.close()
+
+            print(f"[AUTH-REG-OTP] Dispatched {channel} registration verification code to {masked_target}")
+            self.send_json({
+                "success": True,
+                "message": f"Verification code dispatched to {masked_target}.",
+                "target": masked_target,
+                "expires_in": 600
+            })
+            return
+
+        # -------------------------------------------------------------
+        # Registration Contact Verification: Verify OTP
+        # -------------------------------------------------------------
+        if path == '/api/auth/register/verify-otp':
+            ident = (body.get('identifier') or '').strip()
+            otp_code = str(body.get('otp_code') or body.get('otp') or '').strip()
+            purpose = (body.get('purpose') or 'REG_EMAIL_VERIFY').upper()
+
+            if not ident or not otp_code or len(otp_code) != 6:
+                self.send_json({"success": False, "message": "Identifier and 6-digit verification code are required."}, 400)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT * FROM otps WHERE identifier = ? AND purpose = ? AND verified = 0 AND expires_at > datetime('now')
+            ORDER BY id DESC LIMIT 1
+            """, (ident, purpose))
+            rec = cur.fetchone()
+            if not rec:
+                conn.close()
+                self.send_json({"success": False, "message": "No active verification code found or code has expired. Please request a new code."}, 400)
+                return
+
+            if rec["attempts"] >= 5:
+                cur.execute("UPDATE otps SET verified = 2 WHERE id = ?", (rec["id"],))
+                conn.commit()
+                conn.close()
+                self.send_json({"success": False, "message": "Maximum verification attempts exceeded. Code has been locked for security."}, 429)
+                return
+
+            expected_hash = rec["otp_hash"]
+            computed_hash = hash_otp(rec["identifier"], otp_code)
+            if not expected_hash or not secrets.compare_digest(expected_hash, computed_hash):
+                new_att = rec["attempts"] + 1
+                cur.execute("UPDATE otps SET attempts = ? WHERE id = ?", (new_att, rec["id"]))
+                conn.commit()
+                conn.close()
+                self.send_json({"success": False, "message": f"Incorrect verification code. Attempts remaining: {max(0, 5 - new_att)}."}, 400)
+                return
+
+            # Verified! Issue verification token
+            v_token = secrets.token_hex(24)
+            cur.execute("UPDATE otps SET verified = 1, reset_token = ? WHERE id = ?", (v_token, rec["id"]))
+            conn.commit()
+            conn.close()
+
+            self.send_json({
+                "success": True,
+                "message": "Contact information verified successfully.",
+                "verification_token": v_token
+            })
+            return
+
+        # -------------------------------------------------------------
+        # Admin Registration Requests: Approve
+        # -------------------------------------------------------------
+        if path.startswith('/api/admin/registration-requests/') and path.endswith('/approve'):
+            target_id = path[len('/api/admin/registration-requests/'):-len('/approve')].strip('/')
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT id, name, role, email, status FROM users WHERE id = ?", (target_id,))
+            target = cur.fetchone()
+            if not target:
+                conn.close()
+                self.send_json({"success": False, "message": "Target user registration not found."}, 404)
+                return
+
+            cur.execute("UPDATE users SET status = 'ACTIVE' WHERE id = ?", (target_id,))
+            conn.commit()
+            conn.close()
+
+            print(f"[AUTH-ADMIN] Administrator approved {target['role']} account for {target['name']} ({target['id']})")
+            self.send_json({
+                "success": True,
+                "message": f"Account for {target['name']} ({target['role']}) has been successfully approved and activated.",
+                "user_id": target_id
+            })
+            return
+
+        # -------------------------------------------------------------
+        # Admin Registration Requests: Reject
+        # -------------------------------------------------------------
+        if path.startswith('/api/admin/registration-requests/') and path.endswith('/reject'):
+            target_id = path[len('/api/admin/registration-requests/'):-len('/reject')].strip('/')
+            reason = (body.get('reason') or 'Institutional application declined by administrator.').strip()
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT id, name, role, email FROM users WHERE id = ?", (target_id,))
+            target = cur.fetchone()
+            if not target:
+                conn.close()
+                self.send_json({"success": False, "message": "Target user registration not found."}, 404)
+                return
+
+            cur.execute("UPDATE users SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", (reason, target_id))
+            conn.commit()
+            conn.close()
+
+            print(f"[AUTH-ADMIN] Administrator rejected {target['role']} account for {target['name']} ({target['id']})")
+            self.send_json({
+                "success": True,
+                "message": f"Registration request for {target['name']} has been rejected.",
+                "user_id": target_id
+            })
+            return
+
+        # -------------------------------------------------------------
+        # Admin User Management: Update Email/Mobile/Details
+        # -------------------------------------------------------------
+        if path.startswith('/api/users/') and (path.endswith('/update') or self.command == 'PUT'):
+            target_id = path.split('/')[3]
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM users WHERE id = ?", (target_id,))
+            existing_user = cur.fetchone()
+            if not existing_user:
+                conn.close()
+                self.send_json({"success": False, "message": "User not found."}, 404)
+                return
+
+            u_name = (body.get('name') or existing_user['name']).strip()
+            u_email = (body.get('email') or existing_user['email']).strip().lower()
+            u_phone = (body.get('phone') or existing_user['phone']).strip()
+            u_roll = (body.get('roll_no') or body.get('rollNo') or existing_user['roll_no'])
+            u_fac = (body.get('faculty_id') or body.get('facultyId') or existing_user['faculty_id'])
+            u_dept = (body.get('department') or existing_user['department'])
+            u_desig = (body.get('designation') or existing_user['designation'])
+            u_status = (body.get('status') or existing_user['status']).upper()
+
+            # Check duplicate email if changed
+            if u_email != existing_user['email'].lower():
+                cur.execute("SELECT id FROM users WHERE LOWER(email) = ? AND id != ?", (u_email, target_id))
+                if cur.fetchone():
+                    conn.close()
+                    self.send_json({"success": False, "message": f"Email '{u_email}' is already registered to another account."}, 409)
+                    return
+
+            cur.execute("""
+            UPDATE users SET
+                name = ?, email = ?, phone = ?, roll_no = ?, faculty_id = ?,
+                department = ?, designation = ?, status = ?
+            WHERE id = ?
+            """, (u_name, u_email, u_phone, u_roll, u_fac, u_dept, u_desig, u_status, target_id))
+            conn.commit()
+
+            cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status, created_at FROM users WHERE id = ?", (target_id,))
+            updated_row = dict(cur.fetchone())
+            conn.close()
+
+            print(f"[AUTH-ADMIN] Updated user record: {updated_row['name']} ({updated_row['id']})")
+            self.send_json({
+                "success": True,
+                "message": f"Account details for {updated_row['name']} updated successfully.",
+                "user": updated_row
+            })
+            return
+
+        # -------------------------------------------------------------
+        # Admin User Management: Deactivate / Archive
+        # -------------------------------------------------------------
+        if path.startswith('/api/users/') and path.endswith('/archive'):
+            target_id = path[len('/api/users/'):-len('/archive')].strip('/')
+            if target_id == 'usr_admin_vivek':
+                self.send_json({"success": False, "message": "Chief Administrator (Vivek) cannot be deactivated."}, 403)
+                return
+
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET status = 'ARCHIVED' WHERE id = ?", (target_id,))
+            conn.commit()
+            conn.close()
+            self.send_json({"success": True, "message": "Account deactivated/archived."})
+            return
+
+        # -------------------------------------------------------------
+        # Admin User Management: Restore Active
+        # -------------------------------------------------------------
+        if path.startswith('/api/users/') and path.endswith('/restore'):
+            target_id = path[len('/api/users/'):-len('/restore')].strip('/')
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET status = 'ACTIVE' WHERE id = ?", (target_id,))
+            conn.commit()
+            conn.close()
+            self.send_json({"success": True, "message": "Account restored to ACTIVE."})
+            return
+
         # 3c. User Registration (with PBKDF2 Hashing & Session Issuance)
         if path == '/api/auth/register':
             name = body.get('name', '').strip()
@@ -1452,8 +1828,8 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             role = body.get('role', 'STUDENT').upper()
             department = body.get('department', 'Computer Science & Engineering').strip()
             institution = body.get('institution', 'Maharishi Markandeshwar (Deemed to be University), Mullana').strip()
-            roll_no = body.get('rollNo') or body.get('roll_no')
-            faculty_id = body.get('facultyId') or body.get('faculty_id')
+            roll_no = (body.get('rollNumber') or body.get('roll_number') or body.get('rollNo') or body.get('roll_no') or body.get('roll') or body.get('identifier') or '').strip() or None
+            faculty_id = (body.get('facultyId') or body.get('faculty_id') or body.get('employeeId') or body.get('employee_id') or body.get('faculty_code') or '').strip() or None
 
             if not name or not email or not password:
                 self.send_json({"success": False, "message": "Full legal name, email address, and password are required."}, 400)
@@ -1482,31 +1858,54 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             designation = 'Student Candidate' if role == 'STUDENT' else ('Faculty Member' if role == 'TEACHER' else 'Department Administrator')
             hashed_pwd = hash_password(password)
 
+            # Role & Status Specification:
+            # - Students: ACTIVE immediately (No admin approval required)
+            # - Faculty: PENDING (Requires Admin Vivek approval)
+            # - Administrators: PENDING (Requires current Active Admin approval)
+            clean_role = role.upper()
+            if clean_role in ('TEACHER', 'FACULTY'):
+                initial_status = 'PENDING'
+                role_key = 'TEACHER'
+                success_msg = f"Registration submitted. Your Faculty account for {name} is pending review and approval by Administrator Vivek."
+            elif clean_role in ('ADMIN', 'ADMINISTRATOR'):
+                initial_status = 'PENDING'
+                role_key = 'ADMIN'
+                success_msg = f"Registration submitted. Your Administrator account for {name} is pending review and approval by Administrator Vivek."
+            else:
+                initial_status = 'ACTIVE'
+                role_key = 'STUDENT'
+                success_msg = f"Student account registered successfully. Welcome to CredGen, {name}."
+
             cur.execute("""
-            INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'ACTIVE')
-            """, (user_id, name, email, phone, hashed_pwd, role, department, institution, designation, roll_no, faculty_id))
-            
-            # Issue session token immediately for registered user
-            session_token = generate_session_token()
-            ip_addr = self.client_address[0] if self.client_address else ''
-            ua = self.headers.get('User-Agent', '')
-            cur.execute("""
-            INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent)
-            VALUES (?, ?, datetime('now', '+7 days'), ?, ?)
-            """, (session_token, user_id, ip_addr, ua))
+            INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status, email_verified, phone_verified)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 1, 1)
+            """, (user_id, name, email, phone, hashed_pwd, role_key, department, institution, designation, roll_no, faculty_id, initial_status))
             conn.commit()
 
             cur.execute("SELECT id, name, email, phone, role, department, institution, designation, roll_no, faculty_id, avatar, status, created_at FROM users WHERE id = ?", (user_id,))
             new_user = dict(cur.fetchone())
+
+            # Issue session token ONLY for active accounts (Students)
+            session_token = None
+            if initial_status == 'ACTIVE':
+                session_token = generate_session_token()
+                ip_addr = self.client_address[0] if self.client_address else ''
+                ua = self.headers.get('User-Agent', '')
+                cur.execute("""
+                INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent)
+                VALUES (?, ?, datetime('now', '+7 days'), ?, ?)
+                """, (session_token, user_id, ip_addr, ua))
+                conn.commit()
+
             conn.close()
 
-            print(f"[AUTH-REGISTER] Created new {role} user: {name} ({email}) [ID: {user_id}, Token: {session_token[:8]}...]")
+            print(f"[AUTH-REGISTER] Created new {role_key} user: {name} ({email}) [ID: {user_id}, Status: {initial_status}]")
             self.send_json({
                 "success": True,
-                "message": "Account registered successfully.",
+                "message": success_msg,
                 "token": session_token,
-                "user": new_user
+                "user": new_user,
+                "pending": (initial_status == 'PENDING')
             }, 201)
             return
 
@@ -2776,6 +3175,11 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
     def do_PUT(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        # Delegate user updates and other POST-compatible handlers to do_POST
+        if path.startswith('/api/users/'):
+            return self.do_POST()
+
         body = self.read_json_body()
 
         # Update Support Query Status & Remarks via PUT
