@@ -2937,8 +2937,11 @@
 
       // AI Assessment Question Generator State
       const [showAiQuestionModal, setShowAiQuestionModal] = useState(false);
+      const [aiGenCourseMode, setAiGenCourseMode] = useState('preset'); // 'preset' | 'custom'
       const [aiGenCourseId, setAiGenCourseId] = useState('CS-308');
       const [aiGenCourseName, setAiGenCourseName] = useState('Cloud Computing');
+      const [aiGenCustomCode, setAiGenCustomCode] = useState('');
+      const [aiGenCustomName, setAiGenCustomName] = useState('');
       const [aiGenTopic, setAiGenTopic] = useState('');
       const [aiGenDifficulty, setAiGenDifficulty] = useState('Medium');
       const [aiGenCount, setAiGenCount] = useState(3);
@@ -2947,6 +2950,8 @@
       const [aiGenResults, setAiGenResults] = useState([]);
       const [aiGenSelectedIds, setAiGenSelectedIds] = useState([]);
       const [aiGenTargetExamOnly, setAiGenTargetExamOnly] = useState(false);
+      const [editingQuestionId, setEditingQuestionId] = useState(null);
+      const [editDraft, setEditDraft] = useState(null);
 
       // Auth Flow State: 'login' | 'reg_step1' | 'reg_step2_email' | 'reg_step3_phone' | 'forgot_step1' | 'forgot_step2' | 'forgot_step3' | 'forgot_success'
       const [authFlowStep, setAuthFlowStep] = useState('login');
@@ -4816,11 +4821,14 @@
         }, 600);
       };
 
-      // Autonomous AI Assessment Item Generator (MCQ & Short Answer Subjective)
+      // Autonomous AI Assessment Item Generator (Universal Topic Support + MCQ & Short Answer Subjective)
       const handleGenerateAiQuestions = async (overrideCourseId, overrideTopic) => {
         setAiGenLoading(true);
-        const cId = overrideCourseId || aiGenCourseId || 'CS-308';
-        const cName = aiGenCourseName || (cId === 'CS-302' ? 'Database Management Systems' : cId === 'CS-304' ? 'Design & Analysis of Algorithms' : cId === 'CS-306' ? 'Java Programming' : cId === 'CS-308' ? 'Cloud Computing' : cId === 'CS-310' ? 'Big Data Analytics' : 'Software Project Management');
+        const isCustom = aiGenCourseMode === 'custom';
+        const cId = overrideCourseId || (isCustom ? (aiGenCustomCode.trim() || 'CUSTOM') : (aiGenCourseId || 'CS-308'));
+        const cName = isCustom
+          ? (aiGenCustomName.trim() || 'Custom Subject')
+          : (aiGenCourseName || (cId === 'CS-302' ? 'Database Management Systems' : cId === 'CS-304' ? 'Design & Analysis of Algorithms' : cId === 'CS-306' ? 'Java Programming' : cId === 'CS-308' ? 'Cloud Computing' : cId === 'CS-310' ? 'Big Data Analytics' : 'Software Project Management'));
         const isSub = (aiGenType || '').toUpperCase() === 'SUBJECTIVE' || (aiGenType || '').toUpperCase() === 'SHORT ANSWER';
         const tTopic = (overrideTopic || aiGenTopic || '').trim() || (
           isSub
@@ -4846,156 +4854,155 @@
             setAiGenResults(data.questions);
             setAiGenSelectedIds(data.questions.map(q => q.id));
             setAiGenLoading(false);
-            triggerToast('AI Items Ready', `Synthesized ${data.questions.length} ${isSub ? 'Subjective (5M)' : 'MCQ'} items for ${cId} (${data.engine || 'AI'}).`);
+            setEditingQuestionId(null);
+            setEditDraft(null);
+            triggerToast('AI Items Ready', `Synthesized ${data.questions.length} ${isSub ? 'Subjective (5M)' : 'MCQ'} items for ${cId} (${data.engine || 'AI Engine'}).`);
             return;
           }
         } catch (err) {
           console.warn('Backend question generator fallback:', err);
         }
 
-        // Resilient Curricular Fallback
+        // Resilient Curricular Universal Synthesizer (Local fallback for any topic)
         setTimeout(() => {
           let fallbackPool = [];
-          if (isSub) {
-            fallbackPool = [
-              {
-                id: 'ai_gen_' + Date.now() + '_1',
+          const marksVal = isSub ? 5.0 : (aiGenDifficulty === 'Easy' ? 2.0 : aiGenDifficulty === 'Medium' ? 4.0 : 5.0);
+          const negVal = isSub ? 0.0 : (aiGenDifficulty === 'Easy' ? 0.5 : 1.0);
+          for (let i = 1; i <= aiGenCount; i++) {
+            const qid = 'ai_gen_' + Date.now() + '_' + i;
+            if (isSub) {
+              fallbackPool.push({
+                id: qid,
                 courseId: cId,
                 courseName: cName,
-                unit: 'Unit 1: ' + tTopic,
+                unit: `Unit ${i}: ${tTopic}`,
                 topic: tTopic,
                 type: 'Subjective',
                 difficulty: aiGenDifficulty,
                 marks: 5.0,
                 negativeMarks: 0.0,
-                questionText: `Explain the fundamental operational principles and architectural constraints governing ${tTopic} in ${cName}. Detail the primary trade-offs encountered during high-scale enterprise deployment.`,
+                bloomsLevel: aiGenDifficulty === 'Easy' ? 'Knowledge' : aiGenDifficulty === 'Medium' ? 'Application' : 'Analysis',
+                questionText: i === 1
+                  ? `Explain the fundamental operational principles, algorithmic execution, and architectural constraints governing ${tTopic} in ${cName}. Detail the primary trade-offs.`
+                  : i === 2
+                  ? `Analyze the failure handling, state synchronization, and performance optimization mechanisms utilized in ${tTopic}. How does the architecture maintain stability under scale?`
+                  : `Evaluate the design considerations and security/consistency boundaries of ${tTopic} in ${cName}. Contrast its execution pipeline with alternative paradigms.`,
                 options: [],
                 correctOptionId: null,
-                modelAnswer: `In ${cName}, ${tTopic} mandates strict state isolation, fault-tolerant replication, and deterministic latency envelopes. Enterprise deployments must balance operational throughput against distributed consensus consistency, ensuring state transitions remain decoupled and auditable.`,
+                modelAnswer: `In ${cName}, ${tTopic} mandates strict state isolation, fault-tolerant execution, and deterministic latency envelopes. Deployments must balance operational throughput against distributed consensus consistency, ensuring state transitions remain decoupled and auditable.`,
                 keyPoints: [
-                  "Core theoretical foundation and architectural definitions (2 Marks)",
-                  "System workflow, execution pipeline, and design constraints (2 Marks)",
-                  "Real-world enterprise application & trade-off analysis (1 Mark)"
+                  `Core theoretical foundation and architectural definitions of ${tTopic} (2 Marks)`,
+                  `Execution workflow, pipeline design, and state constraints (2 Marks)`,
+                  `Industry trade-off analysis and practical deployment validation (1 Mark)`
                 ],
                 rubric: "5 Marks: 2M for foundational definitions; 2M for architecture and workflow; 1M for industrial trade-off analysis.",
-                explanation: `Verified UGC CBCS curricular benchmark for ${cName} examining conceptual mastery of ${tTopic}.`
-              },
-              {
-                id: 'ai_gen_' + Date.now() + '_2',
+                explanation: `Academic benchmark for ${cName} examining theoretical depth and architectural implementation of ${tTopic}.`
+              });
+            } else {
+              fallbackPool.push({
+                id: qid,
                 courseId: cId,
                 courseName: cName,
-                unit: 'Unit 2: ' + tTopic,
-                topic: tTopic,
-                type: 'Subjective',
-                difficulty: aiGenDifficulty,
-                marks: 5.0,
-                negativeMarks: 0.0,
-                questionText: `Analyze the failure recovery protocol and consistency mechanisms utilized in ${tTopic}. How does the system prevent data corruption under concurrent write conditions?`,
-                options: [],
-                correctOptionId: null,
-                modelAnswer: `Failure recovery in ${tTopic} relies on write-ahead logging (WAL) combined with quorum-based heartbeats. Under concurrent write workloads, isolation is enforced through two-phase locking (2PL) or multi-version concurrency control (MVCC), preventing dirty read collisions and cascading transaction rollbacks.`,
-                keyPoints: [
-                  "Failure detection and crash recovery mechanics (2 Marks)",
-                  "Concurrency control: locking vs multi-version isolation (2 Marks)",
-                  "Integrity guarantees and rollback prevention (1 Mark)"
-                ],
-                rubric: "5 Marks: 2M for crash recovery protocol; 2M for concurrency control mechanics; 1M for integrity preservation.",
-                explanation: `High-concurrency systems enforce strict serializability and crash-recovery protocols to guarantee durability.`
-              },
-              {
-                id: 'ai_gen_' + Date.now() + '_3',
-                courseId: cId,
-                courseName: cName,
-                unit: 'Unit 3: ' + tTopic,
-                topic: tTopic,
-                type: 'Subjective',
-                difficulty: aiGenDifficulty,
-                marks: 5.0,
-                negativeMarks: 0.0,
-                questionText: `Evaluate the algorithmic complexity and performance characteristics of ${tTopic} in ${cName}. Discuss strategies to optimize execution time and resource utilization.`,
-                options: [],
-                correctOptionId: null,
-                modelAnswer: `Algorithmic performance in ${tTopic} is governed by asymptotic time and space bounds. Optimization strategies incorporate in-memory caching, indexing structures (such as B+ Trees or hash maps), and parallel divide-and-conquer pipelines, reducing bottleneck latency from quadratic to sub-linear or logarithmic scales.`,
-                keyPoints: [
-                  "Algorithmic asymptotic time and space analysis (2 Marks)",
-                  "Resource bottlenecks: memory, CPU, and disk I/O (1.5 Marks)",
-                  "Optimization strategies: caching, indexing, and parallelism (1.5 Marks)"
-                ],
-                rubric: "5 Marks: 2M for formal complexity analysis; 1.5M for bottleneck identification; 1.5M for optimization techniques.",
-                explanation: `System throughput is maximized by mitigating I/O and algorithmic bottlenecks through hierarchical caching.`
-              }
-            ];
-          } else {
-            fallbackPool = [
-              {
-                id: 'ai_gen_' + Date.now() + '_1',
-                courseId: cId,
-                courseName: cName,
-                unit: 'Unit 1: ' + tTopic,
+                unit: `Unit ${i}: ${tTopic}`,
                 topic: tTopic,
                 type: 'MCQ',
                 difficulty: aiGenDifficulty,
-                marks: aiGenDifficulty === 'Easy' ? 2 : aiGenDifficulty === 'Medium' ? 4 : 5,
-                negativeMarks: aiGenDifficulty === 'Easy' ? 0.5 : 1.0,
-                questionText: `Which foundational design principle governs ${tTopic} in ${cName} according to UGC CBCS curriculum benchmarks?`,
+                marks: marksVal,
+                negativeMarks: negVal,
+                bloomsLevel: aiGenDifficulty === 'Easy' ? 'Knowledge' : aiGenDifficulty === 'Medium' ? 'Application' : 'Analysis',
+                questionText: i === 1
+                  ? `Which core architectural principle governs the deterministic execution and state integrity of ${tTopic} in ${cName}?`
+                  : i === 2
+                  ? `During high-throughput production load, what metric directly reflects operational stability in ${tTopic}?`
+                  : `What protocol ensures fault-tolerant state recovery in ${tTopic} across distributed node failures?`,
                 options: [
-                  { id: 'opt_1', text: 'Decoupled stateless architecture with horizontal scaling guarantees' },
-                  { id: 'opt_2', text: 'Monolithic single-threaded execution without buffer isolation' },
-                  { id: 'opt_3', text: 'Asynchronous event bus bypassing memory protection boundaries' },
-                  { id: 'opt_4', text: 'Static heap allocation restricted to legacy compile-time bounds' }
+                  { id: 'opt_1', text: `Decoupled state management with deterministic quorum consensus in ${tTopic}` },
+                  { id: 'opt_2', text: `Unbounded asynchronous buffer polling without backpressure controls` },
+                  { id: 'opt_3', text: `Monolithic thread serialization on an unsegmented shared lock` },
+                  { id: 'opt_4', text: `Unreplicated volatile memory allocation without snapshot recovery` }
                 ],
                 correctOptionId: 'opt_1',
-                explanation: `In ${cName}, ${tTopic} mandates decoupled state isolation to prevent cross-process memory corruption and ensure elastic reliability.`
-              },
-              {
-                id: 'ai_gen_' + Date.now() + '_2',
-                courseId: cId,
-                courseName: cName,
-                unit: 'Unit 2: ' + tTopic,
-                topic: tTopic,
-                type: 'MCQ',
-                difficulty: aiGenDifficulty,
-                marks: aiGenDifficulty === 'Easy' ? 2 : aiGenDifficulty === 'Medium' ? 4 : 5,
-                negativeMarks: aiGenDifficulty === 'Easy' ? 0.5 : 1.0,
-                questionText: `During high-concurrency peak load, what metric directly reflects operational throughput in ${tTopic}?`,
-                options: [
-                  { id: 'opt_1', text: 'Transactions Per Second (TPS) under low p99 tail latency bounds' },
-                  { id: 'opt_2', text: 'Total physical lines of source code in the binary distribution' },
-                  { id: 'opt_3', text: 'Number of active graphical user interfaces connected' },
-                  { id: 'opt_4', text: 'Static IP subnet allocation count' }
-                ],
-                correctOptionId: 'opt_1',
-                explanation: `Throughput in ${cName} is measured in sustained TPS while maintaining deterministic p99 response time envelopes.`
-              },
-              {
-                id: 'ai_gen_' + Date.now() + '_3',
-                courseId: cId,
-                courseName: cName,
-                unit: 'Unit 3: ' + tTopic,
-                topic: tTopic,
-                type: 'MCQ',
-                difficulty: aiGenDifficulty,
-                marks: aiGenDifficulty === 'Easy' ? 2 : aiGenDifficulty === 'Medium' ? 4 : 5,
-                negativeMarks: aiGenDifficulty === 'Easy' ? 0.5 : 1.0,
-                questionText: `What failure recovery protocol ensures fault-tolerance in ${tTopic} across distributed cluster nodes?`,
-                options: [
-                  { id: 'opt_1', text: 'Automated heartbeat quorum election with distributed log consensus' },
-                  { id: 'opt_2', text: 'Manual server reboot upon unhandled fatal exception' },
-                  { id: 'opt_3', text: 'Unreplicated local disk caching without snapshots' },
-                  { id: 'opt_4', text: 'Immediate socket termination without graceful drain' }
-                ],
-                correctOptionId: 'opt_1',
-                explanation: `Distributed resilience requires consensus quorums and replicated write-ahead logs to survive node crashes seamlessly.`
-              }
-            ];
+                explanation: `In ${cName}, robust implementations of ${tTopic} require deterministic state replication and quorum consensus to eliminate single points of failure.`
+              });
+            }
           }
-          const finalCount = Math.min(aiGenCount, fallbackPool.length);
-          const finalSet = fallbackPool.slice(0, finalCount);
-          setAiGenResults(finalSet);
-          setAiGenSelectedIds(finalSet.map(q => q.id));
+          setAiGenResults(fallbackPool);
+          setAiGenSelectedIds(fallbackPool.map(q => q.id));
           setAiGenLoading(false);
-          triggerToast('AI Items Ready', `Generated ${finalSet.length} ${isSub ? 'Subjective' : 'MCQ'} items via Curricular Synthesizer.`);
-        }, 600);
+          setEditingQuestionId(null);
+          setEditDraft(null);
+          triggerToast('AI Items Ready', `Generated ${fallbackPool.length} ${isSub ? 'Subjective' : 'MCQ'} items via Curricular Synthesizer.`);
+        }, 500);
+      };
+
+      // In-Panel Question Editing & Batch Item Management
+      const handleStartEditAiQuestion = (q, e) => {
+        if (e) e.stopPropagation();
+        setEditingQuestionId(q.id);
+        setEditDraft(JSON.parse(JSON.stringify(q)));
+      };
+
+      const handleSaveEditDraft = (e) => {
+        if (e) e.stopPropagation();
+        if (!editDraft) return;
+        setAiGenResults(prev => prev.map(item => item.id === editDraft.id ? editDraft : item));
+        setEditingQuestionId(null);
+        setEditDraft(null);
+        triggerToast('Item Updated', 'Question edits saved successfully.');
+      };
+
+      const handleCancelEditDraft = (e) => {
+        if (e) e.stopPropagation();
+        setEditingQuestionId(null);
+        setEditDraft(null);
+      };
+
+      const handleDiscardAiQuestion = (qId, e) => {
+        if (e) e.stopPropagation();
+        setAiGenResults(prev => prev.filter(q => q.id !== qId));
+        setAiGenSelectedIds(prev => prev.filter(id => id !== qId));
+        if (editingQuestionId === qId) {
+          setEditingQuestionId(null);
+          setEditDraft(null);
+        }
+        triggerToast('Item Removed', 'Question discarded from current batch.');
+      };
+
+      const handleAddNewCustomQuestionToBatch = () => {
+        const isCustom = aiGenCourseMode === 'custom';
+        const cId = isCustom ? (aiGenCustomCode.trim() || 'CUSTOM') : aiGenCourseId;
+        const cName = isCustom ? (aiGenCustomName.trim() || 'Custom Subject') : aiGenCourseName;
+        const isSub = (aiGenType || '').toUpperCase() === 'SUBJECTIVE' || (aiGenType || '').toUpperCase() === 'SHORT ANSWER';
+        const newId = 'ai_gen_custom_' + Date.now();
+        const newQ = {
+          id: newId,
+          courseId: cId,
+          courseName: cName,
+          unit: 'Unit 1: ' + (aiGenTopic.trim() || 'Custom Module'),
+          topic: aiGenTopic.trim() || 'General Engineering',
+          type: isSub ? 'Subjective' : 'MCQ',
+          difficulty: aiGenDifficulty,
+          marks: isSub ? 5.0 : 4.0,
+          negativeMarks: isSub ? 0.0 : 1.0,
+          bloomsLevel: 'Application',
+          questionText: 'Type your custom question statement here...',
+          options: isSub ? [] : [
+            { id: 'opt_1', text: 'Option A (Correct answer)' },
+            { id: 'opt_2', text: 'Option B (Distractor)' },
+            { id: 'opt_3', text: 'Option C (Distractor)' },
+            { id: 'opt_4', text: 'Option D (Distractor)' }
+          ],
+          correctOptionId: isSub ? null : 'opt_1',
+          modelAnswer: isSub ? 'Enter comprehensive model answer and key technical criteria for evaluation...' : '',
+          keyPoints: isSub ? ['Foundational theory and definitions (2 Marks)', 'Technical pipeline & execution (2 Marks)', 'Real-world application / trade-offs (1 Mark)'] : [],
+          rubric: isSub ? '5 Marks: 2M definition, 2M technical depth, 1M practical context' : '',
+          explanation: 'Enter the rationale or textbook reference for this question...'
+        };
+        setAiGenResults(prev => [newQ, ...prev]);
+        setAiGenSelectedIds(prev => [...prev, newId]);
+        setEditingQuestionId(newId);
+        setEditDraft(JSON.parse(JSON.stringify(newQ)));
+        triggerToast('Custom Item Added', 'New question added to batch. Edit details below.');
       };
 
       const handleInsertAiQuestionsIntoExam = () => {
@@ -5716,27 +5723,30 @@
           {/* AI ASSESSMENT ITEM GENERATOR MODAL */}
           {showAiQuestionModal && (
             <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200">
-              <div className="w-full max-w-3xl glass-panel p-6 sm:p-8 rounded-3xl border border-indigo-500/40 shadow-[0_25px_60px_-15px_rgba(99,102,241,0.3)] space-y-5 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
+              <div className="w-full max-w-4xl glass-panel p-5 sm:p-7 rounded-3xl border border-indigo-500/40 shadow-[0_25px_60px_-15px_rgba(99,102,241,0.3)] space-y-4 my-auto max-h-[92vh] overflow-y-auto custom-scrollbar">
                 
                 {/* Modal Header */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-pink-500/20 text-brand-400 border border-indigo-500/40 flex items-center justify-center shadow-glow-brand">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-glow-brand">
                       <Icons.Sparkles />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-base font-extrabold text-slate-100 font-display tracking-tight">AI Assessment Item Generator</h3>
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold border border-indigo-500/30">
-                          UGC CBCS SYNTHESIZER
+                        <h3 className="font-display font-bold text-base sm:text-lg text-slate-100">
+                          AI Assessment Item Generator
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          UNIVERSAL TOPICS & CUSTOM EDIT
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        Generate curriculum-aligned Multiple Choice and Short Answer / Subjective questions with model solutions and marking rubrics.
+                      <p className="text-xs text-slate-400">
+                        Generate curriculum-aligned MCQs and 5-Mark Short Answer items for ANY subject or custom topic.
                       </p>
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setShowAiQuestionModal(false)}
                     className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-700/80 text-slate-400 hover:text-slate-100 flex items-center justify-center transition-all"
                   >
@@ -5747,31 +5757,77 @@
                 {/* Configuration Panel */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-4 shadow-md">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    {/* Course Selection */}
+                    {/* Course Selection & Mode Toggle */}
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Target Course / Subject</label>
-                      <select
-                        value={aiGenCourseId}
-                        onChange={e => {
-                          const cid = e.target.value;
-                          setAiGenCourseId(cid);
-                          if (cid === 'CS-302') setAiGenCourseName('Database Management Systems');
-                          else if (cid === 'CS-304') setAiGenCourseName('Design & Analysis of Algorithms');
-                          else if (cid === 'CS-306') setAiGenCourseName('Java Programming');
-                          else if (cid === 'CS-308') setAiGenCourseName('Cloud Computing');
-                          else if (cid === 'CS-310') setAiGenCourseName('Big Data Analytics');
-                          else if (cid === 'CS-312') setAiGenCourseName('Software Project Management');
-                          setAiGenTopic('');
-                        }}
-                        className="w-full p-2.5 rounded-xl form-input font-medium"
-                      >
-                        <option value="CS-308">CS-308: Cloud Computing</option>
-                        <option value="CS-302">CS-302: Database Management Systems</option>
-                        <option value="CS-306">CS-306: Java Programming</option>
-                        <option value="CS-304">CS-304: Design & Analysis of Algorithms</option>
-                        <option value="CS-310">CS-310: Big Data Analytics</option>
-                        <option value="CS-312">CS-312: Software Project Management</option>
-                      </select>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-slate-300 font-semibold">Subject / Course</label>
+                        <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => setAiGenCourseMode('preset')}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                              aiGenCourseMode === 'preset'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            Preset
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAiGenCourseMode('custom')}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                              aiGenCourseMode === 'custom'
+                                ? 'bg-purple-600 text-white shadow-sm'
+                                : 'text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            ✨ Custom
+                          </button>
+                        </div>
+                      </div>
+
+                      {aiGenCourseMode === 'preset' ? (
+                        <select
+                          value={aiGenCourseId}
+                          onChange={e => {
+                            const cid = e.target.value;
+                            setAiGenCourseId(cid);
+                            if (cid === 'CS-302') setAiGenCourseName('Database Management Systems');
+                            else if (cid === 'CS-304') setAiGenCourseName('Design & Analysis of Algorithms');
+                            else if (cid === 'CS-306') setAiGenCourseName('Java Programming');
+                            else if (cid === 'CS-308') setAiGenCourseName('Cloud Computing');
+                            else if (cid === 'CS-310') setAiGenCourseName('Big Data Analytics');
+                            else if (cid === 'CS-312') setAiGenCourseName('Software Project Management');
+                            setAiGenTopic('');
+                          }}
+                          className="w-full p-2.5 rounded-xl form-input font-medium text-xs"
+                        >
+                          <option value="CS-308">CS-308: Cloud Computing</option>
+                          <option value="CS-302">CS-302: Database Management Systems</option>
+                          <option value="CS-306">CS-306: Java Programming</option>
+                          <option value="CS-304">CS-304: Design & Analysis of Algorithms</option>
+                          <option value="CS-310">CS-310: Big Data Analytics</option>
+                          <option value="CS-312">CS-312: Software Project Management</option>
+                        </select>
+                      ) : (
+                        <div className="grid grid-cols-5 gap-1.5">
+                          <input
+                            type="text"
+                            value={aiGenCustomCode}
+                            onChange={e => setAiGenCustomCode(e.target.value)}
+                            placeholder="Code: AI-401"
+                            className="col-span-2 p-2 rounded-xl form-input font-mono text-xs font-bold uppercase placeholder:normal-case placeholder:font-sans placeholder:text-slate-500"
+                          />
+                          <input
+                            type="text"
+                            value={aiGenCustomName}
+                            onChange={e => setAiGenCustomName(e.target.value)}
+                            placeholder="Subject Title (e.g. Artificial Intelligence)"
+                            className="col-span-3 p-2 rounded-xl form-input font-medium text-xs placeholder:text-slate-500"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Question Format Toggle */}
@@ -5830,9 +5886,9 @@
                   {/* Topic / Unit Selection */}
                   <div className="text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-slate-300 font-semibold">Syllabus Topic / Subject Module</label>
+                      <label className="text-slate-300 font-semibold">Syllabus Topic / Subject Module (Enter ANY Topic)</label>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        {aiGenType === 'Subjective' ? 'Descriptive Syllabus Focus' : 'Custom or Suggested'}
+                        {aiGenType === 'Subjective' ? 'Descriptive Focus' : 'Freeform or Curricular'}
                       </span>
                     </div>
                     <input
@@ -5840,7 +5896,9 @@
                       value={aiGenTopic}
                       onChange={e => setAiGenTopic(e.target.value)}
                       placeholder={
-                        aiGenType === 'Subjective'
+                        aiGenCourseMode === 'custom'
+                          ? "e.g. Backpropagation in Neural Networks, Deadlock Detection, Robotic Kinematics..."
+                          : aiGenType === 'Subjective'
                           ? `e.g. ${aiGenCourseId === 'CS-308' ? 'Type-1 vs Type-2 Hypervisors' : aiGenCourseId === 'CS-302' ? 'ACID & Write-Ahead Logging' : aiGenCourseId === 'CS-306' ? 'Java Memory Model & Volatile' : 'Core Architecture'}`
                           : `e.g. ${aiGenCourseId === 'CS-308' ? 'Virtualization & Hypervisors' : aiGenCourseId === 'CS-302' ? 'ACID & Transactions' : aiGenCourseId === 'CS-306' ? 'Multithreading & Synchronization' : 'Core Architecture'}`
                       }
@@ -5850,10 +5908,12 @@
                     {/* Quick Topic Chips */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <span className="text-[10px] text-slate-400 font-mono">
-                        {aiGenType === 'Subjective' ? 'Subjective Modules:' : 'Curricular Chips:'}
+                        {aiGenCourseMode === 'custom' ? 'Sample Concepts:' : (aiGenType === 'Subjective' ? 'Subjective Modules:' : 'Curricular Chips:')}
                       </span>
                       {(
-                        aiGenType === 'Subjective'
+                        aiGenCourseMode === 'custom'
+                          ? ['Fundamental Principles', 'System Architecture & Dataflow', 'Performance & Scalability', 'Fault Tolerance & Resilience', 'Algorithmic Optimization']
+                          : aiGenType === 'Subjective'
                           ? (
                               aiGenCourseId === 'CS-308'
                                 ? ['Type-1 vs Type-2 Hypervisors', 'S3 Read-After-Write Consistency', 'Serverless FaaS Cold Starts', 'Kubernetes Pod Architecture']
@@ -5941,7 +6001,7 @@
                 {/* Generated Results Preview */}
                 {aiGenResults.length > 0 && (
                   <div className="space-y-3.5 animate-in fade-in">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-200 uppercase tracking-wider font-display">
                           Generated Assessment Items ({aiGenResults.length})
@@ -5950,30 +6010,202 @@
                           READY TO INGEST
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-3 text-xs">
                         <button
                           type="button"
-                          onClick={() => setAiGenSelectedIds(aiGenResults.map(q => q.id))}
-                          className="text-[11px] text-brand-400 hover:text-brand-300 font-medium"
+                          onClick={handleAddNewCustomQuestionToBatch}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/60 text-[11px] font-semibold transition-all flex items-center gap-1 shadow-sm"
                         >
-                          Select All
+                          <Icons.Plus />
+                          <span>Add Question to Batch</span>
                         </button>
-                        <span className="text-slate-600">•</span>
-                        <button
-                          type="button"
-                          onClick={() => setAiGenSelectedIds([])}
-                          className="text-[11px] text-slate-400 hover:text-slate-300 font-medium"
-                        >
-                          Deselect All
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAiGenSelectedIds(aiGenResults.map(q => q.id))}
+                            className="text-[11px] text-brand-400 hover:text-brand-300 font-medium"
+                          >
+                            Select All
+                          </button>
+                          <span className="text-slate-600">•</span>
+                          <button
+                            type="button"
+                            onClick={() => setAiGenSelectedIds([])}
+                            className="text-[11px] text-slate-400 hover:text-slate-300 font-medium"
+                          >
+                            Deselect All
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     {/* Questions Cards List */}
-                    <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                       {aiGenResults.map((q, idx) => {
                         const isSelected = aiGenSelectedIds.includes(q.id);
                         const isSub = (q.type || '').toUpperCase() === 'SUBJECTIVE' || (q.type || '').toUpperCase() === 'SHORT ANSWER';
+                        const isEditing = editingQuestionId === q.id && editDraft;
+
+                        if (isEditing) {
+                          return (
+                            <div
+                              key={q.id || idx}
+                              onClick={e => e.stopPropagation()}
+                              className="p-4 rounded-2xl border bg-slate-900/95 border-indigo-500 shadow-xl space-y-3"
+                            >
+                              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                                <span className="text-xs font-bold text-indigo-300 font-display flex items-center gap-1.5">
+                                  <Icons.Sliders />
+                                  <span>Editing Question #{idx + 1}</span>
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveEditDraft}
+                                    className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm flex items-center gap-1 transition-all"
+                                  >
+                                    ✓ Save Changes
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEditDraft}
+                                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Question Text Editor */}
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-semibold text-slate-300">Question Statement / Stem</label>
+                                <textarea
+                                  rows={3}
+                                  value={editDraft.questionText || ''}
+                                  onChange={e => setEditDraft({ ...editDraft, questionText: e.target.value })}
+                                  className="w-full p-2.5 rounded-xl form-input font-medium text-xs"
+                                  placeholder="Enter question statement..."
+                                />
+                              </div>
+
+                              {/* Metadata Bar */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                <div>
+                                  <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">Topic / Module</label>
+                                  <input
+                                    type="text"
+                                    value={editDraft.topic || ''}
+                                    onChange={e => setEditDraft({ ...editDraft, topic: e.target.value })}
+                                    className="w-full p-2 rounded-xl form-input text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">Difficulty</label>
+                                  <select
+                                    value={editDraft.difficulty || 'Medium'}
+                                    onChange={e => setEditDraft({ ...editDraft, difficulty: e.target.value })}
+                                    className="w-full p-2 rounded-xl form-input text-xs"
+                                  >
+                                    <option value="Easy">Basic (Easy)</option>
+                                    <option value="Medium">Analytical (Medium)</option>
+                                    <option value="Hard">Advanced (Hard)</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">Marks (Weightage)</label>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="1"
+                                    max="20"
+                                    value={editDraft.marks || 5}
+                                    onChange={e => setEditDraft({ ...editDraft, marks: parseFloat(e.target.value) || 1 })}
+                                    className="w-full p-2 rounded-xl form-input font-mono text-xs font-bold"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* MCQ Options Editor */}
+                              {!isSub && editDraft.options && (
+                                <div className="space-y-2 pt-1">
+                                  <label className="text-[11px] font-semibold text-slate-300 block">
+                                    Multiple Choice Options (Click badge to designate Correct Answer):
+                                  </label>
+                                  <div className="space-y-1.5">
+                                    {editDraft.options.map((opt, optIdx) => {
+                                      const isCorrect = opt.id === editDraft.correctOptionId;
+                                      return (
+                                        <div key={opt.id} className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditDraft({ ...editDraft, correctOptionId: opt.id })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold border transition-all shrink-0 ${
+                                              isCorrect
+                                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+                                            }`}
+                                            title="Click to set as answer key"
+                                          >
+                                            {isCorrect ? '✓ CORRECT KEY' : `OPTION ${optIdx + 1}`}
+                                          </button>
+                                          <input
+                                            type="text"
+                                            value={opt.text}
+                                            onChange={e => {
+                                              const newOpts = editDraft.options.map(o => o.id === opt.id ? { ...o, text: e.target.value } : o);
+                                              setEditDraft({ ...editDraft, options: newOpts });
+                                            }}
+                                            className={`flex-1 p-2 rounded-xl form-input text-xs ${isCorrect ? 'border-emerald-500/50 bg-emerald-950/20' : ''}`}
+                                            placeholder={`Option ${optIdx + 1} text...`}
+                                          />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Subjective Model Answer Editor */}
+                              {isSub && (
+                                <div className="space-y-2 pt-1">
+                                  <div>
+                                    <label className="text-[11px] font-semibold text-slate-300 block mb-0.5">Model Answer / Evaluator Benchmark</label>
+                                    <textarea
+                                      rows={3}
+                                      value={editDraft.modelAnswer || ''}
+                                      onChange={e => setEditDraft({ ...editDraft, modelAnswer: e.target.value })}
+                                      className="w-full p-2.5 rounded-xl form-input text-xs"
+                                      placeholder="Enter comprehensive model answer..."
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[11px] font-semibold text-slate-300 block mb-0.5">Marking Rubric</label>
+                                    <input
+                                      type="text"
+                                      value={editDraft.rubric || ''}
+                                      onChange={e => setEditDraft({ ...editDraft, rubric: e.target.value })}
+                                      className="w-full p-2 rounded-xl form-input text-xs"
+                                      placeholder="e.g. 2M definition, 2M technical depth, 1M practical context"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Explanation Editor */}
+                              <div>
+                                <label className="text-[11px] font-semibold text-slate-300 block mb-0.5">Pedagogical Solution Note / Explanation</label>
+                                <textarea
+                                  rows={2}
+                                  value={editDraft.explanation || ''}
+                                  onChange={e => setEditDraft({ ...editDraft, explanation: e.target.value })}
+                                  className="w-full p-2 rounded-xl form-input text-xs"
+                                  placeholder="Enter pedagogical rationale..."
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={q.id || idx}
@@ -6005,9 +6237,28 @@
                                   {isSub ? 'SHORT ANSWER • 5M' : 'MCQ'}
                                 </span>
                               </div>
-                              <span className="text-emerald-400 font-mono text-xs font-bold shrink-0">
-                                +{q.marks} Marks
-                              </span>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-emerald-400 font-mono text-xs font-bold">
+                                  +{q.marks} Marks
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={e => handleStartEditAiQuestion(q, e)}
+                                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 text-[11px] font-semibold transition-all flex items-center gap-1"
+                                  title="Edit question statement, options, or answer key"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={e => handleDiscardAiQuestion(q.id, e)}
+                                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-[11px] transition-all"
+                                  title="Discard this item"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
                             </div>
 
                             <div className="text-xs font-bold text-slate-100 leading-snug">

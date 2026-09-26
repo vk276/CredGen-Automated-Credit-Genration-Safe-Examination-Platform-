@@ -2002,11 +2002,11 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             self.send_json(res_payload)
             return
 
-        # 3d. AI Assessment Question Generator Engine (Dual-Engine: OpenAI + Curricular Synthesizer)
+        # 3d. AI Assessment Question Generator Engine (Universal: Gemini + OpenAI + Adaptive Domain Synthesizer)
         if path == '/api/ai/generate-questions':
-            course_id = (body.get('courseId') or body.get('course_id') or 'CS-308').strip()
-            course_name = (body.get('courseName') or body.get('course_name') or 'Cloud Computing').strip()
-            topic = (body.get('topic') or 'Core Architecture & Principles').strip()
+            course_id = (body.get('courseId') or body.get('course_id') or 'CUSTOM').strip()
+            course_name = (body.get('courseName') or body.get('course_name') or 'General Technology & Engineering').strip()
+            topic = (body.get('topic') or 'Core Conceptual Principles').strip()
             difficulty = (body.get('difficulty') or 'Medium').capitalize()
             q_type = (body.get('type') or body.get('q_type') or 'MCQ').strip()
             is_subjective = q_type.upper() in ['SUBJECTIVE', 'SHORT_ANSWER', 'SHORT ANSWER', 'DESCRIPTIVE']
@@ -2018,735 +2018,498 @@ class CredGenApiServer(http.server.SimpleHTTPRequestHandler):
             blooms = body.get('bloomsLevel') or ('Application' if difficulty == 'Medium' else 'Analysis' if difficulty == 'Hard' else 'Knowledge')
 
             generated_questions = []
-            source_engine = "CredGen Autonomous Curricular Engine"
+            source_engine = "CredGen Universal Academic AI Engine"
 
-            # Attempt 1: OpenAI Live Generation if Key Provided
-            openai_key = os.environ.get('OPENAI_API_KEY', '')
-            if not openai_key and os.path.exists('.env'):
+            # -------------------------------------------------------------
+            # Attempt 1: Google Gemini API (if GEMINI_API_KEY / GOOGLE_API_KEY configured)
+            # -------------------------------------------------------------
+            gemini_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+            if not gemini_key and os.path.exists('.env'):
                 try:
                     with open('.env', 'r', encoding='utf-8') as ef:
                         for line in ef:
-                            if line.startswith('OPENAI_API_KEY='):
-                                openai_key = line.strip().split('=', 1)[1].strip('"\'')
+                            line_s = line.strip()
+                            if line_s.startswith(('GEMINI_API_KEY=', 'GOOGLE_API_KEY=')):
+                                gemini_key = line_s.split('=', 1)[1].strip('"\'')
                                 break
                 except:
                     pass
-            if openai_key:
+
+            if gemini_key:
                 try:
                     if is_subjective:
-                        sys_prompt = (
-                            "You are the Lead University Examination Paper Author for UGC CBCS accredited higher technical institutions (MMDU Mullana). "
-                            "Generate rigorous, accurate academic Short Answer / Subjective questions (5 Marks each) complete with an authoritative Model Answer, Key Scoring Points, and an Evaluation Rubric. "
-                            "Respond ONLY in valid JSON matching the schema: "
-                            "{\"questions\": [{\"questionText\": \"...\", \"modelAnswer\": \"...\", \"keyPoints\": [\"...\", \"...\", \"...\"], \"rubric\": \"...\", \"explanation\": \"...\"}]}"
-                        )
-                        user_prompt = (
-                            f"Course: {course_id} - {course_name}\n"
-                            f"Topic/Syllabus Unit: {topic}\n"
-                            f"Difficulty: {difficulty}\n"
-                            f"Bloom's Taxonomy Level: {blooms}\n"
-                            f"Quantity: {count} Short Answer Subjective questions (5 Marks each).\n"
-                            "Each question must require a structured technical response with definitions, architecture/workflow, and industrial application."
+                        gem_prompt = (
+                            f"Generate {count} rigorous university-grade 5-Mark Subjective / Short Answer questions on {topic} for course {course_id} - {course_name} at {difficulty} level.\n"
+                            "Respond ONLY in valid JSON matching schema: {\"questions\": [{\"questionText\": \"...\", \"modelAnswer\": \"...\", \"keyPoints\": [\"...\", \"...\", \"...\"], \"rubric\": \"...\", \"explanation\": \"...\"}]}"
                         )
                     else:
-                        sys_prompt = (
-                            "You are the Lead University Examination Paper Author for UGC CBCS accredited higher technical institutions (MMDU Mullana). "
-                            "Generate rigorous, accurate academic questions with 4 distinct options, an identified correct option, and a pedagogical explanation. "
-                            "Respond ONLY in valid JSON matching the schema: "
-                            "{\"questions\": [{\"questionText\": \"...\", \"options\": [{\"id\": \"opt_1\", \"text\": \"...\"}, {\"id\": \"opt_2\", \"text\": \"...\"}, {\"id\": \"opt_3\", \"text\": \"...\"}, {\"id\": \"opt_4\", \"text\": \"...\"}], \"correctOptionId\": \"opt_1\", \"explanation\": \"...\"}]}"
+                        gem_prompt = (
+                            f"Generate {count} rigorous academic Multiple Choice Questions on {topic} for course {course_id} - {course_name} at {difficulty} level with 4 distinct options.\n"
+                            "Respond ONLY in valid JSON matching schema: {\"questions\": [{\"questionText\": \"...\", \"options\": [{\"id\": \"opt_1\", \"text\": \"...\"}, {\"id\": \"opt_2\", \"text\": \"...\"}, {\"id\": \"opt_3\", \"text\": \"...\"}, {\"id\": \"opt_4\", \"text\": \"...\"}], \"correctOptionId\": \"opt_1\", \"explanation\": \"...\"}]}"
                         )
-                        user_prompt = (
-                            f"Course: {course_id} - {course_name}\n"
-                            f"Topic/Syllabus Unit: {topic}\n"
-                            f"Difficulty: {difficulty}\n"
-                            f"Bloom's Taxonomy Level: {blooms}\n"
-                            f"Quantity: {count} Multiple Choice questions.\n"
-                            "Each question must test practical application and conceptual depth."
-                        )
-                    payload_oa = {
-                        "model": "gpt-4o-mini",
-                        "messages": [
-                            {"role": "system", "content": sys_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        "response_format": {"type": "json_object"},
-                        "temperature": 0.3
+                    gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+                    gem_payload = {
+                        "contents": [{"parts": [{"text": gem_prompt}]}],
+                        "generationConfig": {"response_mime_type": "application/json", "temperature": 0.3}
                     }
-                    req_oa = urllib.request.Request(
-                        "https://api.openai.com/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {openai_key}",
-                            "Content-Type": "application/json"
-                        },
-                        data=json.dumps(payload_oa).encode('utf-8')
+                    gem_req = urllib.request.Request(
+                        gem_url,
+                        headers={"Content-Type": "application/json"},
+                        data=json.dumps(gem_payload).encode('utf-8')
                     )
-                    with urllib.request.urlopen(req_oa, timeout=7) as resp_oa:
-                        raw_res = json.loads(resp_oa.read().decode('utf-8'))
-                        content_oa = json.loads(raw_res['choices'][0]['message']['content'])
-                        if 'questions' in content_oa and len(content_oa['questions']) > 0:
-                            for idx, q in enumerate(content_oa['questions'][:count]):
+                    with urllib.request.urlopen(gem_req, timeout=6) as g_resp:
+                        g_raw = json.loads(g_resp.read().decode('utf-8'))
+                        text_part = g_raw['candidates'][0]['content']['parts'][0]['text']
+                        g_json = json.loads(text_part)
+                        if 'questions' in g_json and len(g_json['questions']) > 0:
+                            marks_val = 5.0 if is_subjective else (2.0 if difficulty == 'Easy' else 4.0 if difficulty == 'Medium' else 5.0)
+                            for idx, q in enumerate(g_json['questions'][:count]):
                                 qid = f"ai_gen_{int(time.time()*1000)}_{idx+1}"
-                                if is_subjective:
+                                generated_questions.append({
+                                    "id": qid,
+                                    "courseId": course_id,
+                                    "courseName": course_name,
+                                    "unit": f"Unit {min(idx+1, 4)}: {topic}",
+                                    "topic": topic,
+                                    "type": "Subjective" if is_subjective else "MCQ",
+                                    "difficulty": difficulty,
+                                    "marks": marks_val,
+                                    "negativeMarks": 0.0 if is_subjective else round(marks_val * 0.25, 2),
+                                    "bloomsLevel": blooms,
+                                    "questionText": q.get('questionText', ''),
+                                    "options": q.get('options', []),
+                                    "correctOptionId": q.get('correctOptionId', 'opt_1'),
+                                    "modelAnswer": q.get('modelAnswer', ''),
+                                    "keyPoints": q.get('keyPoints', []),
+                                    "rubric": q.get('rubric', ''),
+                                    "explanation": q.get('explanation', 'Verified curricular standard.')
+                                })
+                            source_engine = "Google Gemini 1.5 Flash (Live AI)"
+                except Exception as e_gem:
+                    pass
+
+            # -------------------------------------------------------------
+            # Attempt 2: OpenAI API (if configured and quota available)
+            # -------------------------------------------------------------
+            if not generated_questions:
+                openai_key = os.environ.get('OPENAI_API_KEY', '')
+                if not openai_key and os.path.exists('.env'):
+                    try:
+                        with open('.env', 'r', encoding='utf-8') as ef:
+                            for line in ef:
+                                if line.startswith('OPENAI_API_KEY='):
+                                    openai_key = line.strip().split('=', 1)[1].strip('"\'')
+                                    break
+                    except:
+                        pass
+                if openai_key:
+                    try:
+                        if is_subjective:
+                            sys_p = "You are an Examination Author for accredited technical universities. Generate 5-mark Subjective questions in JSON matching schema: {\"questions\": [{\"questionText\": \"...\", \"modelAnswer\": \"...\", \"keyPoints\": [\"...\"], \"rubric\": \"...\", \"explanation\": \"...\"}]}"
+                            user_p = f"Course: {course_id} - {course_name}\nTopic: {topic}\nDifficulty: {difficulty}\nQuantity: {count}"
+                        else:
+                            sys_p = "You are an Examination Author for accredited technical universities. Generate MCQs in JSON matching schema: {\"questions\": [{\"questionText\": \"...\", \"options\": [{\"id\": \"opt_1\", \"text\": \"...\"}, {\"id\": \"opt_2\", \"text\": \"...\"}, {\"id\": \"opt_3\", \"text\": \"...\"}, {\"id\": \"opt_4\", \"text\": \"...\"}], \"correctOptionId\": \"opt_1\", \"explanation\": \"...\"}]}"
+                            user_p = f"Course: {course_id} - {course_name}\nTopic: {topic}\nDifficulty: {difficulty}\nQuantity: {count}"
+                        
+                        req_oa = urllib.request.Request(
+                            "https://api.openai.com/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                            data=json.dumps({
+                                "model": "gpt-4o-mini",
+                                "messages": [{"role": "system", "content": sys_p}, {"role": "user", "content": user_p}],
+                                "response_format": {"type": "json_object"},
+                                "temperature": 0.3
+                            }).encode('utf-8')
+                        )
+                        with urllib.request.urlopen(req_oa, timeout=6) as resp_oa:
+                            content_oa = json.loads(json.loads(resp_oa.read().decode('utf-8'))['choices'][0]['message']['content'])
+                            if 'questions' in content_oa and len(content_oa['questions']) > 0:
+                                marks_val = 5.0 if is_subjective else (2.0 if difficulty == 'Easy' else 4.0 if difficulty == 'Medium' else 5.0)
+                                for idx, q in enumerate(content_oa['questions'][:count]):
+                                    qid = f"ai_gen_{int(time.time()*1000)}_{idx+1}"
                                     generated_questions.append({
                                         "id": qid,
                                         "courseId": course_id,
                                         "courseName": course_name,
                                         "unit": f"Unit {min(idx+1, 4)}: {topic}",
                                         "topic": topic,
-                                        "type": "Subjective",
+                                        "type": "Subjective" if is_subjective else "MCQ",
                                         "difficulty": difficulty,
-                                        "marks": 5.0,
-                                        "negativeMarks": 0.0,
-                                        "bloomsLevel": blooms,
-                                        "questionText": q.get('questionText', ''),
-                                        "options": [],
-                                        "correctOptionId": None,
-                                        "modelAnswer": q.get('modelAnswer', ''),
-                                        "keyPoints": q.get('keyPoints', [
-                                            "Core theoretical foundation & clear definitions (2 Marks)",
-                                            "Architectural workflow or working mechanism (2 Marks)",
-                                            "Real-world application / scenario analysis (1 Mark)"
-                                        ]),
-                                        "rubric": q.get('rubric', '5 Marks awarded for technically sound explanation, diagram/steps, and accurate domain terminology.'),
-                                        "explanation": q.get('explanation', 'Verified curricular concept.')
-                                    })
-                                else:
-                                    marks = 2.0 if difficulty == 'Easy' else 4.0 if difficulty == 'Medium' else 5.0
-                                    generated_questions.append({
-                                        "id": qid,
-                                        "courseId": course_id,
-                                        "courseName": course_name,
-                                        "unit": f"Unit {min(idx+1, 4)}: {topic}",
-                                        "topic": topic,
-                                        "type": "MCQ",
-                                        "difficulty": difficulty,
-                                        "marks": marks,
-                                        "negativeMarks": round(marks * 0.25, 2),
+                                        "marks": marks_val,
+                                        "negativeMarks": 0.0 if is_subjective else round(marks_val * 0.25, 2),
                                         "bloomsLevel": blooms,
                                         "questionText": q.get('questionText', ''),
                                         "options": q.get('options', []),
                                         "correctOptionId": q.get('correctOptionId', 'opt_1'),
-                                        "explanation": q.get('explanation', 'Verified curricular concept.')
+                                        "modelAnswer": q.get('modelAnswer', ''),
+                                        "keyPoints": q.get('keyPoints', []),
+                                        "rubric": q.get('rubric', ''),
+                                        "explanation": q.get('explanation', 'Verified curricular standard.')
                                     })
-                            source_engine = "OpenAI GPT-4o-mini (Live)"
-                except Exception as e_oa:
-                    # Gracefully falls back to Curricular Synthesizer if OpenAI credits exhausted or offline
-                    pass
+                                source_engine = "OpenAI GPT-4o-mini (Live AI)"
+                    except Exception:
+                        pass
 
-            # Fallback / Autonomous Curricular Bank Engine
+            # -------------------------------------------------------------
+            # Attempt 3: Universal Dynamic Academic Synthesizer (Zero-Failure Engine)
+            # Operates for ANY custom topic, course, or subject without limits!
+            # -------------------------------------------------------------
             if not generated_questions:
-                if is_subjective:
-                    CURRICULAR_SUBJECTIVE_POOL = {
-                        "CS-302": [
+                source_engine = "CredGen Universal Academic AI Synthesizer"
+                t_clean = topic.strip() if topic.strip() else 'Core Theoretical Principles'
+                c_name = course_name.strip() if course_name.strip() else 'Advanced Technology'
+                c_id = course_id.strip() if course_id.strip() else 'TECH-101'
+                marks_val = 5.0 if is_subjective else (2.0 if difficulty == 'Easy' else 4.0 if difficulty == 'Medium' else 5.0)
+                neg_m = 0.0 if is_subjective else round(marks_val * 0.25, 2)
+                t_lower = t_clean.lower()
+                c_lower = c_name.lower()
+                combined = f"{t_lower} {c_lower}"
+
+                # Domain Knowledge Repositories
+                DOMAINS = [
+                    {
+                        "keys": ["neural", "machine learning", "deep learning", "ai", "artificial intelligence", "backprop", "gradient", "cnn", "rnn", "transformer", "classification", "regression", "clustering"],
+                        "mcq": [
                             {
-                                "unit": "Unit 2: Transaction Management & Concurrency",
-                                "topic": "ACID Properties & Write-Ahead Logging",
-                                "q": "Explain the ACID properties of database transactions with real-world banking examples. Discuss how the Write-Ahead Logging (WAL) protocol guarantees the Durability property in the event of an unexpected hardware crash.",
-                                "modelAnswer": "ACID represents the four essential properties guaranteeing transactional reliability: (1) Atomicity: The entire transaction executes to completion or has zero effect, guaranteed via undo log rollbacks. Example: transferring INR 10,000 deducts account A and credits account B simultaneously. (2) Consistency: The transaction preserves all database schema integrity constraints and business rules. (3) Isolation: Concurrently executing transactions cannot see uncommitted intermediate states of other transactions, enforced via two-phase locking (2PL) or multi-version concurrency control (MVCC). (4) Durability: Once committed, changes survive catastrophic system crashes. Write-Ahead Logging (WAL) guarantees durability by strictly writing and flushing transaction log records to non-volatile disk BEFORE dirty memory buffer pool pages are written to tablespace storage. During crash recovery, the DBMS replays logs in the REDO phase to reconstruct committed updates.",
-                                "keyPoints": [
-                                    "Definition of all 4 ACID properties with banking examples (2 Marks)",
-                                    "Write-Ahead Logging (WAL) disk flush order mechanism (2 Marks)",
-                                    "Crash recovery REDO / UNDO log replay analysis (1 Mark)"
+                                "q": f"In the context of {t_clean}, how does the gradient descent optimization algorithm guarantee convergence toward an optimal minimum of the empirical risk loss function?",
+                                "opts": [
+                                    "By iteratively adjusting parameter weights in the direction opposite to the gradient vector scaled by the learning rate",
+                                    "By applying random permutations to layer weights until loss variance drops below zero",
+                                    "By fixing parameter updates to constant integers regardless of partial derivative magnitude",
+                                    "By discarding negative loss gradients and solely accumulating positive differentials"
                                 ],
-                                "rubric": "5 Marks: 2M for accurate ACID definitions and examples; 2M for detailed WAL protocol explanation; 1M for crash recovery explanation.",
-                                "exp": "WAL ensures Durability by forcing log records to persistent disk before memory buffer pages are updated.",
-                                "diff": "Medium"
+                                "exp": f"Gradient descent computes partial derivatives (dL/dW) and updates parameters along the steepest negative slope: W = W - eta * (dL/dW)."
                             },
                             {
-                                "unit": "Unit 3: Relational Schema Design & Normalization",
-                                "topic": "3NF vs Boyce-Codd Normal Form (BCNF)",
-                                "q": "Differentiate between Third Normal Form (3NF) and Boyce-Codd Normal Form (BCNF) using formal functional dependency definitions. Provide a schema example that is in 3NF but violates BCNF, and explain the trade-offs of BCNF decomposition.",
-                                "modelAnswer": "A relational schema R is in 3NF if for every non-trivial functional dependency X -> Y, either X is a superkey OR Y is a prime attribute (part of a candidate key). In contrast, BCNF is strictly more rigorous: for every non-trivial functional dependency X -> Y, X MUST be a superkey without exception. For example, consider schema Professor_Subject_Department(Prof, Subj, Dept) where a professor teaches one subject (Prof -> Subj) and a subject belongs to one department (Subj -> Dept). If (Prof, Dept) is candidate key and Subj -> Dept holds, Subj is NOT a superkey. Here Dept is a prime attribute, so the schema satisfies 3NF, but violates BCNF because Subj is not a superkey. BCNF eliminates all redundancy caused by functional dependencies, but decomposing into BCNF may fail to preserve all functional dependencies (loss of dependency preservation).",
-                                "keyPoints": [
-                                    "Mathematical definition of 3NF vs BCNF (2 Marks)",
-                                    "Concrete schema example violating BCNF while satisfying 3NF (2 Marks)",
-                                    "Lossless decomposition vs dependency preservation trade-off (1 Mark)"
+                                "q": f"Which critical pathology directly impedes training performance in deep architectures during {t_clean}, and how is it mathematically mitigated?",
+                                "opts": [
+                                    "Vanishing/Exploding gradients; mitigated via non-saturating activations (e.g. ReLU/GELU), residual skip connections, and layer normalization",
+                                    "Underfitting caused by excessive parameter counts; mitigated by disabling all regularization and dropout layers",
+                                    "Loss function divergence caused by insufficient epochs; mitigated by expanding batch sizes to infinity",
+                                    "Stochastic resonance; mitigated by disabling backpropagation on hidden layers"
                                 ],
-                                "rubric": "5 Marks: 2M for formal definitions; 2M for valid schema example showing non-superkey determinant; 1M for dependency preservation discussion.",
-                                "exp": "BCNF eliminates all FD redundancy by strictly forbidding non-superkey determinants even when the dependent is a prime attribute.",
-                                "diff": "Hard"
+                                "exp": f"Vanishing gradients cause backpropagated errors to decay exponentially through deep layers; normalization, residual skip links, and non-saturating activations preserve gradient flow."
                             },
                             {
-                                "unit": "Unit 4: Storage Engines & Indexing Architectures",
-                                "topic": "B+ Tree Index Architecture & Disk Optimization",
-                                "q": "Describe the architectural structure of a B+ Tree index in relational databases. Explain why database storage engines favor B+ Trees over standard Binary Search Trees and B-Trees for disk-bound query processing.",
-                                "modelAnswer": "A B+ Tree is an N-ary balanced search tree engineered specifically for block-oriented disk storage systems: (1) Architecture: All actual data records or record pointers reside exclusively in leaf nodes, which are linked horizontally in a bidirectional linked list enabling ultra-high-speed sequential and range scans. Internal nodes store search keys purely as routing pointers. (2) Advantages over BST: Binary Search Trees have a branching factor of 2, requiring depth O(log2 N). For 100 million records, a BST requires ~27 disk seeks. In contrast, B+ Trees feature a massive branching factor (fan-out of 100–500 per disk page), keeping tree depth to 3–4 levels (3–4 I/O operations). (3) Advantages over standard B-Tree: Standard B-Trees store data rows in internal nodes, severely reducing fan-out per page and making range scans perform slow in-order tree traversals rather than sequential leaf traversals.",
-                                "keyPoints": [
-                                    "B+ Tree Leaf Node structure and doubly linked list (2 Marks)",
-                                    "Disk page fan-out and shallow tree height analysis (2 Marks)",
-                                    "Range query performance comparison against BST and B-Tree (1 Mark)"
+                                "q": f"When evaluating a predictive model trained on {t_clean}, what is the fundamental trade-off governed by the Bias-Variance dilemma?",
+                                "opts": [
+                                    "High bias causes systematic underfitting from oversimplified assumptions, whereas high variance causes overfitting on training sample noise",
+                                    "High bias increases training speed at the expense of RAM memory consumption",
+                                    "Variance measures convergence speed while bias measures the batch size requirements",
+                                    "Low bias guarantees zero generalization error on unseen test distributions"
                                 ],
-                                "rubric": "5 Marks: 2M for diagrammatic structure of internal and leaf nodes; 2M for fan-out and disk seek depth; 1M for range query analysis.",
-                                "exp": "By isolating record pointers to linked leaf nodes, B+ Trees maximize fan-out and deliver high-efficiency sequential range scanning.",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 2: Concurrency Control Protocols",
-                                "topic": "Two-Phase Locking (2PL) & Deadlock Prevention",
-                                "q": "Explain the Two-Phase Locking (2PL) protocol in transaction concurrency control. How does Strict-2PL differ from Basic 2PL, and how does it prevent cascading rollbacks in high-concurrency environments?",
-                                "modelAnswer": "The Two-Phase Locking (2PL) protocol guarantees conflict serializability by dividing a transaction's lock lifecycle into two mutually exclusive phases: (1) Growing Phase: The transaction acquires shared (read) or exclusive (write) locks as needed, but cannot release any lock. (2) Shrinking Phase: The transaction releases locks, but cannot acquire any new locks. Under Basic 2PL, a transaction may release write locks in its shrinking phase before it commits. If another transaction reads that uncommitted data and the first transaction subsequently aborts, the second transaction must also be rolled back, causing cascading aborts. Strict-2PL resolves this by requiring the transaction to hold ALL exclusive (write) locks until the transaction formally terminates (COMMIT or ABORT). Because uncommitted writes are never exposed to concurrent readers, cascading rollbacks are eliminated.",
-                                "keyPoints": [
-                                    "Growing Phase and Shrinking Phase operational rules (2 Marks)",
-                                    "Cascading abort vulnerability in Basic 2PL (1.5 Marks)",
-                                    "Strict-2PL exclusive lock retention and elimination of cascading aborts (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 2M for 2PL phases definition; 1.5M for cascading rollback mechanism; 1.5M for Strict-2PL guarantees.",
-                                "exp": "Strict-2PL prevents cascading rollbacks by ensuring uncommitted writes remain strictly locked until final transaction commit.",
-                                "diff": "Medium"
+                                "exp": f"Increasing model complexity reduces approximation bias but increases sensitivity to sample variance, necessitating regularized hyperparameter tuning."
                             }
                         ],
-                        "CS-304": [
+                        "sub": [
                             {
-                                "unit": "Unit 3: Dynamic Programming Paradigm",
-                                "topic": "0/1 Knapsack Problem & Bellman Optimality",
-                                "q": "Formulate the 0/1 Knapsack problem using Dynamic Programming. State Bellman's Principle of Optimality, write the recursive recurrence relation, and explain how the DP table achieves pseudo-polynomial time complexity.",
-                                "modelAnswer": "In the 0/1 Knapsack problem, given N items each with weight w[i] and value v[i], and maximum knapsack capacity W, we seek the maximum total value without exceeding W. Bellman's Principle of Optimality states that an optimal policy has the property that whatever the initial state and decision are, the remaining decisions must constitute an optimal policy with regard to the state resulting from the first decision. The recurrence relation is: dp[i][w] = dp[i-1][w] if w[i] > w; else max(dp[i-1][w], v[i] + dp[i-1][w - w[i]]). The dynamic programming table has dimensions (N+1) x (W+1), requiring O(N * W) time and space. Because the running time is polynomial in the magnitude of W (which requires log2 W bits to represent), this time complexity is classified as pseudo-polynomial rather than strictly polynomial.",
+                                "q": f"Explain the fundamental mathematical principles, architecture, and training lifecycle of {t_clean} in {c_name}. Detail the forward pass, loss computation, and backpropagation mechanics with relevant equations.",
+                                "modelAnswer": f"In {c_name}, {t_clean} operates through an iterative optimization lifecycle: (1) Forward Transformation: Input feature vectors x are projected through weight matrices W and bias vectors b via activation functions sigma(z), yielding predicted output y_hat = sigma(W*x + b). (2) Objective Function: An empirical loss L(y, y_hat) evaluates divergence from ground-truth targets. (3) Backward Propagation (Credit Assignment): Utilizing the chain rule of calculus, partial derivatives of the loss with respect to all layer weights (dL/dW) are computed backward through network topology. (4) Parameter Optimization: Weights are updated via optimizer rules: W_new = W_old - eta * (dL/dW). Techniques such as Adam optimization, L2 weight decay, and dropout prevent overfitting and accelerate convergence.",
                                 "keyPoints": [
-                                    "Formal problem statement and Bellman's Principle of Optimality (1.5 Marks)",
-                                    "Correct dynamic programming recurrence relation with base cases (2 Marks)",
-                                    "O(N*W) pseudo-polynomial complexity justification (1.5 Marks)"
+                                    "Mathematical formulation of forward projection and objective loss calculation (2 Marks)",
+                                    "Chain rule backward propagation and gradient derivation (2 Marks)",
+                                    "Practical convergence techniques (learning rate, regularization, and optimization) (1 Mark)"
                                 ],
-                                "rubric": "5 Marks: 1.5M for problem and optimality principle; 2M for recurrence equation; 1.5M for time complexity explanation.",
-                                "exp": "Dynamic programming avoids 2^N brute-force recursion by memoizing optimal subproblems in an (N+1) x (W+1) state table.",
-                                "diff": "Medium"
+                                "rubric": "5 Marks: 2M for clear forward equations; 2M for chain rule backprop steps; 1M for practical optimization techniques."
+                            }
+                        ]
+                    },
+                    {
+                        "keys": ["os", "operating system", "process", "thread", "scheduling", "deadlock", "memory", "paging", "semaphore", "mutex"],
+                        "mcq": [
+                            {
+                                "q": f"In modern Operating Systems managing {t_clean}, what mechanism ensures thread-safe critical section execution without wasteful busy-waiting (spinning)?",
+                                "opts": [
+                                    "Blocking synchronization primitives (e.g. semaphores/mutexes) that transition waiting threads to a BLOCKED queue until signaled",
+                                    "Spinlocks running continuous empty while loops consuming maximum CPU execution cycles",
+                                    "Disabling hardware interrupts across all CPU cores for the entire duration of thread runtime",
+                                    "Re-allocating the entire virtual address space of the process on each lock acquisition"
+                                ],
+                                "exp": f"Blocking primitives put threads into a sleep state in the kernel scheduler queue, freeing the CPU core for other executable workloads."
                             },
                             {
-                                "unit": "Unit 4: Graph Algorithms & Shortest Paths",
-                                "topic": "Dijkstra vs Bellman-Ford Algorithmic Constraints",
-                                "q": "Compare Dijkstra's algorithm and the Bellman-Ford algorithm for single-source shortest paths. Explain why Dijkstra's greedy choice property fails on graphs with negative edge weights, and how Bellman-Ford detects negative-weight cycles.",
-                                "modelAnswer": "Dijkstra's algorithm is a greedy algorithm operating in O((V + E) log V) using a min-priority queue (binary heap), but it strictly requires all edge weights to be non-negative. Bellman-Ford uses dynamic programming edge relaxation operating in O(V * E), capable of handling graphs with negative weights. Dijkstra fails on negative edges because once a vertex u is extracted from the priority queue and marked finalized, Dijkstra assumes that no path through undiscovered vertices can yield a shorter distance to u. A subsequent negative edge can violate this assumption, producing incorrect shortest paths. Bellman-Ford relaxes all E edges (V - 1) times. If a further V-th relaxation reduces any distance, a negative-weight cycle exists because a simple path in a graph contains at most (V - 1) edges.",
-                                "keyPoints": [
-                                    "Greedy (Dijkstra) vs DP relaxation (Bellman-Ford) algorithmic paradigms (1.5 Marks)",
-                                    "Detailed explanation of why negative edges break Dijkstra's finalized state assumption (2 Marks)",
-                                    "Negative-weight cycle detection mechanism in Bellman-Ford (1.5 Marks)"
+                                "q": f"Regarding memory management in {t_clean}, how does the Translation Lookaside Buffer (TLB) accelerate virtual-to-physical address translation?",
+                                "opts": [
+                                    "By acting as a high-speed associative hardware cache that stores recent virtual-to-physical page table mappings, reducing memory bus latency",
+                                    "By compressing unused physical frames onto swap disk storage in real time",
+                                    "By converting 64-bit virtual addresses directly into 8-bit cache line tags",
+                                    "By eliminating the need for page tables entirely in multi-level architectures"
                                 ],
-                                "rubric": "5 Marks: 1.5M for paradigm comparison and complexities; 2M for failure analysis on negative edges; 1.5M for negative cycle detection.",
-                                "exp": "Dijkstra greedily marks nodes permanent upon dequeue; negative edge transitions violate this finality guarantee.",
-                                "diff": "Hard"
-                            },
-                            {
-                                "unit": "Unit 2: Divide and Conquer Algorithms",
-                                "topic": "Master Theorem Recurrence Asymptotics",
-                                "q": "State the Master Theorem for divide-and-conquer recurrences of the form T(n) = a*T(n/b) + f(n). Explain the three asymptotic cases with examples, and state the conditions where the Master Theorem cannot be applied.",
-                                "modelAnswer": "The Master Theorem solves recurrences T(n) = a*T(n/b) + f(n) where a >= 1, b > 1 are constants and f(n) is asymptotically positive. Let c_crit = log_b(a). (1) Case 1: If f(n) = O(n^(c_crit - epsilon)) for epsilon > 0, then T(n) = Theta(n^log_b(a)). Example: T(n) = 4T(n/2) + n -> T(n) = Theta(n^2). (2) Case 2: If f(n) = Theta(n^c_crit * log^k(n)) for k >= 0, then T(n) = Theta(n^log_b(a) * log^(k+1)(n)). Example: Merge Sort T(n) = 2T(n/2) + O(n) -> Theta(n log n). (3) Case 3: If f(n) = Omega(n^(c_crit + epsilon)) and satisfies regularity condition a*f(n/b) <= d*f(n) for d < 1, then T(n) = Theta(f(n)). The Master Theorem cannot be applied if: (a) a is not constant (e.g. 2^n), (b) b is non-constant, (c) f(n) is not polynomial (e.g. 2^n), or (d) the gap between f(n) and n^log_b(a) is not polynomial (e.g. n / log n).",
-                                "keyPoints": [
-                                    "Standard recurrence equation and critical exponent c = log_b(a) (1 Mark)",
-                                    "Detailed statement and example for Case 1, Case 2, and Case 3 (2.5 Marks)",
-                                    "Specific constraints where Master Theorem is inapplicable (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1M for general formula; 2.5M for all 3 cases with working examples; 1.5M for non-applicability edge cases.",
-                                "exp": "Master Theorem compares work done at subproblem leaves n^log_b(a) against root combination cost f(n).",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 3: Greedy Method & Optimization",
-                                "topic": "Huffman Coding & Optimal Prefix Codes",
-                                "q": "Explain the Huffman Coding algorithm for lossless data compression. Describe the construction of the optimal prefix tree using a min-heap, and prove that no two character codes can be prefixes of one another.",
-                                "modelAnswer": "Huffman Coding is an optimal greedy compression algorithm that assigns variable-length binary codes to characters based on frequencies. Frequent characters receive short bit codes while infrequent characters receive longer bit codes. Construction: (1) Count frequencies of each character and initialize each character as a single-node tree in a min-priority queue (min-heap). (2) Repeatedly extract the two nodes with the lowest frequencies (f1, f2), create a new internal node with frequency (f1 + f2), set the extracted nodes as left and right children, and insert the internal node back into the min-heap. (3) Repeat until one root node remains. Assign '0' to left branches and '1' to right branches. Prefix Property: Because all characters reside strictly at leaf nodes, no character node can be an ancestor of another character node. Therefore, no character's binary path can be a prefix of another, enabling instantaneous unambiguous decoding without delimiter symbols.",
-                                "keyPoints": [
-                                    "Greedy frequency analysis and Min-Heap tree construction steps (2 Marks)",
-                                    "Bit assignment and variable-length encoding efficiency (1.5 Marks)",
-                                    "Proof of the prefix code property via leaf node topology (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 2M for heap algorithm steps; 1.5M for tree bit assignment; 1.5M for prefix code property proof.",
-                                "exp": "Leaf node topology in Huffman trees guarantees unambiguous prefix-free decoding.",
-                                "diff": "Medium"
+                                "exp": f"The TLB caches recent page table entries; on a TLB hit, physical frame addresses are resolved in a single hardware cycle without memory bus traversal."
                             }
                         ],
-                        "CS-306": [
+                        "sub": [
                             {
-                                "unit": "Unit 3: Java Concurrency & Memory Model",
-                                "topic": "Java Memory Model (JMM) & Volatile Keyword",
-                                "q": "Explain the Java Memory Model (JMM) with respect to thread-local CPU caches and main memory. Explain how the 'volatile' keyword establishes happens-before relationships and prevents instruction reordering.",
-                                "modelAnswer": "Under the Java Memory Model (JMM), each CPU hardware thread maintains local registers and L1/L2 caches containing working copies of variables, while main memory holds master values. When thread A modifies a variable, the update may remain in its CPU write buffer without immediate flush to main memory, causing thread B on another core to read stale cached values. The 'volatile' keyword addresses this: (1) Memory Visibility: Reading a volatile variable invalidates the thread's local cache and forces a fresh read from main memory. Writing to a volatile variable immediately flushes the value to main memory. (2) Happens-Before Ordering: Writes to a volatile field happen-before every subsequent read of that field. (3) Instruction Reordering Prevention: The JVM compiler and CPU execute memory barriers (fence instructions) preventing compiler reordering of memory operations across the volatile read/write boundary. However, volatile guarantees visibility, NOT compound atomicity (e.g. count++ is not thread-safe).",
+                                "q": f"Analyze the operational architecture of {t_clean} in {c_name}. Discuss how the operating system coordinates resource allocation, concurrency control, and deadlock prevention under heavy multi-tenant workloads.",
+                                "modelAnswer": f"In {c_name}, {t_clean} represents a foundational OS sub-system engineered for deterministic execution and fair resource sharing: (1) Architecture & Lifecycle: The kernel isolates execution state in dedicated control blocks (PCB/TCB), maintaining register contexts, program counters, page table roots, and file descriptors. (2) Scheduling & Context Switching: A preemptive scheduler dispatches execution time slices based on priority and historical quantum usage. Context switches save CPU register files to the kernel stack and restore the incoming thread context. (3) Concurrency & Critical Sections: When multiple execution paths access shared memory, mutual exclusion is enforced via atomic hardware instructions (e.g. Compare-And-Swap) or kernel mutexes, preventing race conditions. (4) Anomaly Mitigation: The kernel continuously monitors for deadlocks using Coffman conditions and employs bank algorithms or preemption to guarantee liveness and avoid starvation.",
                                 "keyPoints": [
-                                    "JMM CPU cache hierarchy and memory visibility problem (1.5 Marks)",
-                                    "Volatile flush-to-main-memory mechanism and happens-before relationship (2 Marks)",
-                                    "Memory barriers against instruction reordering and limitation on atomicity (1.5 Marks)"
+                                    "Kernel execution state management and context switching lifecycle (2 Marks)",
+                                    "Concurrency synchronization and critical section protection (2 Marks)",
+                                    "System reliability, deadlock prevention, and scheduling guarantees (1 Mark)"
                                 ],
-                                "rubric": "5 Marks: 1.5M for JMM cache structure; 2M for volatile visibility and happens-before rules; 1.5M for memory barriers and atomicity caveat.",
-                                "exp": "Volatile enforces memory barriers that force cache invalidation and prevent CPU instruction reordering.",
-                                "diff": "Medium"
+                                "rubric": "5 Marks: 2M for kernel context lifecycle; 2M for concurrency mechanisms; 1M for deadlock/reliability analysis."
+                            }
+                        ]
+                    },
+                    {
+                        "keys": ["network", "tcp", "udp", "ip", "packet", "routing", "socket", "dns", "http", "firewall", "security", "crypto", "cipher", "cyber"],
+                        "mcq": [
+                            {
+                                "q": f"In network protocol architectures concerning {t_clean}, how does the TCP transport protocol guarantee reliable, in-order packet delivery over an inherently unreliable IP network layer?",
+                                "opts": [
+                                    "Through sequence numbers, cumulative acknowledgments (ACKs), sliding window flow control, and retransmission timers (RTO)",
+                                    "By broadcasting duplicate copies of every packet across all physical network interfaces simultaneously",
+                                    "By enforcing permanent dedicated circuit-switched hardware paths between endpoints",
+                                    "By truncating all packets to 64 bytes to prevent router buffer drops"
+                                ],
+                                "exp": f"TCP numbers each byte transmitted, tracks acknowledgments, dynamically adjusts congestion windows, and triggers selective retransmission upon timeouts or duplicate ACKs."
                             },
                             {
-                                "unit": "Unit 2: JVM Architecture & Memory Management",
-                                "topic": "HotSpot JVM Generational Garbage Collection",
-                                "q": "Describe the Generational Garbage Collection architecture in HotSpot JVM. Explain the life cycle of an object moving through Eden space, Survivor spaces (S0/S1), and the Tenured (Old) Generation, and contrast Minor GC with Full GC.",
-                                "modelAnswer": "HotSpot JVM's Generational GC is based on the Weak Generational Hypothesis: most objects die shortly after creation. The heap is divided into: (1) Young Generation: Comprises Eden space (~80%) and two Survivor spaces S0 and S1 (~10% each). New objects are allocated in Eden. When Eden fills, a Minor GC triggers: surviving objects are copied to the empty survivor space (e.g. S0), and Eden is cleared. On the next Minor GC, survivors from Eden and S0 are copied to S1, swapping roles. (2) Old (Tenured) Generation: Objects that survive a configured number of GC cycles (tenuring threshold, default 15) are promoted to the Old Generation. Large objects directly bypass Eden into Old Generation. (3) Minor vs Full GC: Minor GC cleans only the Young Generation using fast Stop-The-World copying algorithms (milliseconds). Major/Full GC scans the entire heap (Young + Old + Metaspace) using mark-sweep-compact, incurring high latency pauses.",
-                                "keyPoints": [
-                                    "Weak Generational Hypothesis and Young vs Old heap layout (1.5 Marks)",
-                                    "Object lifecycle: Eden -> S0/S1 swapping -> Tenured promotion (2 Marks)",
-                                    "Comparison between Minor GC and Full GC latency and algorithms (1.5 Marks)"
+                                "q": f"When implementing secure communications for {t_clean}, how does the TLS handshake establish an encrypted symmetric session key between client and server?",
+                                "opts": [
+                                    "By using asymmetric public-key cryptography (e.g. RSA or Diffie-Hellman) to authenticate identities and negotiate a shared symmetric session key (e.g. AES-GCM)",
+                                    "By transmitting the master encryption password in plain text inside the initial ClientHello frame",
+                                    "By generating fixed hardcoded cryptographic salts agreed upon in the DNS record",
+                                    "By disabling packet encryption once the initial TCP three-way handshake completes"
                                 ],
-                                "rubric": "5 Marks: 1.5M for heap memory spaces; 2M for object aging and survivor space swapping; 1.5M for Minor vs Full GC comparison.",
-                                "exp": "Generational GC optimizes performance by isolating short-lived objects in young spaces from long-lived tenured objects.",
-                                "diff": "Hard"
-                            },
-                            {
-                                "unit": "Unit 4: Java Collections & Hash Collision Handling",
-                                "topic": "HashMap Internal Architecture (Java 8+)",
-                                "q": "Explain the internal architecture of HashMap in Java 8+. Describe how hash codes, bucket indexing, and collision resolution work, and explain the mechanism and rationale of treeifying buckets into Red-Black Trees.",
-                                "modelAnswer": "Java 8+ HashMap is an array of Node<K,V> buckets (table size starting at 16, load factor 0.75): (1) Index Calculation: HashMap applies a hash spreading function (h = key.hashCode() ^ (h >>> 16)) to distribute high-bit entropy into low bits, then computes bucket index via (n - 1) & hash. (2) Collision Resolution: When different keys map to the same bucket, entries were historically stored in a singly linked list with O(N) lookup. If malicious attackers craft keys with identical hashes, worst-case lookup degrades to O(N), opening Denial of Service (DoS) vulnerabilities. (3) Treeification: In Java 8+, when a bucket's linked list length reaches TREEIFY_THRESHOLD (8) AND total table capacity >= 64, HashMap converts the linked list into a balanced Red-Black Tree (TreeNode<K,V>). This bounds worst-case collision search to O(log N). If entries drop to UNTREEIFY_THRESHOLD (6) during resize, the tree converts back to a linked list.",
-                                "keyPoints": [
-                                    "Hash spreading function and bitwise bucket index calculation (1.5 Marks)",
-                                    "Collision handling and O(N) hash collision Denial-of-Service vulnerability (1.5 Marks)",
-                                    "Treeify threshold (8), Red-Black Tree O(log N) lookup, and untreeify (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for bucket indexing; 1.5M for collision problem; 2M for treeification threshold and Red-Black tree conversion.",
-                                "exp": "Java 8 converts collided buckets with >=8 nodes into Red-Black Trees to guarantee O(log N) worst-case performance.",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 3: Java Concurrency Utilities",
-                                "topic": "ReentrantLock vs Synchronized Blocks",
-                                "q": "Compare the 'synchronized' keyword with java.util.concurrent.locks.ReentrantLock in Java. Explain the advantages of ReentrantLock regarding fairness policies, interruptible lock acquisition, and timed lock attempts.",
-                                "modelAnswer": "Both synchronized and ReentrantLock provide mutual exclusion and reentrancy (a thread holding the lock can re-acquire it without deadlocking). However, ReentrantLock provides advanced capabilities: (1) Fairness: Synchronized locks are strictly unfair, permitting thread barging. ReentrantLock supports an optional fairness constructor parameter: new ReentrantLock(true) grants access to the longest-waiting thread (FIFO queue), eliminating thread starvation. (2) Interruptible Lock Acquisition: A thread blocked on synchronized cannot be interrupted. ReentrantLock provides lockInterruptibly(), enabling the thread to abort waiting upon Thread.interrupt(). (3) Timed Lock Attempts: tryLock(timeout, unit) allows non-blocking or bounded waiting to prevent deadlocks. (4) Multiple Condition Variables: ReentrantLock supports newCondition(), providing fine-grained wait/signal sets unlike synchronized's single wait()/notifyAll() monitor. Disadvantage: ReentrantLock requires explicit unlock() in a finally block.",
-                                "keyPoints": [
-                                    "Mutual exclusion and reentrancy equivalence (1 Mark)",
-                                    "Fairness policy and starvation prevention in ReentrantLock (1.5 Marks)",
-                                    "lockInterruptibly(), tryLock(), and Condition variables advantages (2.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1M for baseline comparison; 1.5M for fairness mechanics; 2.5M for timed, interruptible, and condition variable capabilities.",
-                                "exp": "ReentrantLock provides programmatic control over fairness, timed attempts, and interruptible locks outside synchronized blocks.",
-                                "diff": "Medium"
+                                "exp": f"TLS leverages asymmetric public key cryptography and digital certificates for mutual identity verification and key exchange, then transitions to high-speed symmetric ciphers for payload encryption."
                             }
                         ],
-                        "CS-308": [
+                        "sub": [
                             {
-                                "unit": "Unit 1: Cloud Virtualization & Hypervisors",
-                                "topic": "Type-1 (Bare-Metal) vs Type-2 (Hosted) Hypervisors",
-                                "q": "Compare Type-1 (Bare-Metal) and Type-2 (Hosted) Hypervisors with respect to hardware privilege rings, CPU virtualization extensions, context-switch overhead, and enterprise datacenter cloud adoption.",
-                                "modelAnswer": "Hypervisors manage Virtual Machines (VMs) by abstracting physical CPU, memory, and I/O hardware: (1) Type-1 (Bare-Metal): Runs directly on bare server hardware in Ring 0 (CPU root mode). Examples include VMware ESXi, KVM, and Xen. Guest operating systems execute in Ring 1 or non-root Ring 0 using hardware extensions like Intel VT-x and AMD-V. There is no host operating system layer, yielding near-native hardware speed, deterministic I/O throughput, and minimal context-switch overhead. This makes Type-1 the universal standard for enterprise cloud datacenters (AWS EC2 Nitro, Azure Hyper-V). (2) Type-2 (Hosted): Operates as a user-space application on top of an existing host OS (e.g. VMware Workstation, VirtualBox). Every I/O and CPU operation must traverse the guest OS, hypervisor process, host OS kernel, and physical hardware, introducing substantial latency and context switching. Type-2 is ideal for local software development and testing, but unsuitable for production cloud infrastructure.",
+                                "q": f"Provide an end-to-end technical explanation of {t_clean} within {c_name}. Detail the protocol architecture, message exchange workflow, and security considerations.",
+                                "modelAnswer": f"In {c_name}, {t_clean} governs standardized data transmission and protocol coordination: (1) Protocol Stack Layering: Communications are structured across standard layers (Application, Transport, Network, Link), encapsulating headers at each boundary (e.g. source/destination ports, IP addresses, MAC addresses, checksums). (2) Connection Lifecycle & Handshake: A stateful session begins with negotiation (e.g. SYN, SYN-ACK, ACK), synchronizing sequence numbers, window scaling options, and cryptographic parameters. (3) Flow & Congestion Control: Data transmission dynamically adapts to receiver buffer limits (Advertised Window) and network transit capacity (Congestion Window) using additive increase / multiplicative decrease (AIMD) algorithms. (4) Security & Integrity: Authenticated encryption (e.g. TLS 1.3 with AES-256-GCM) ensures confidentiality, while cryptographic message authentication codes (HMAC) guarantee tamper-detection.",
                                 "keyPoints": [
-                                    "Architectural layers: direct hardware vs host operating system stack (1.5 Marks)",
-                                    "CPU privilege rings (Ring 0 / Root mode) and hardware virtualization (VT-x) (1.5 Marks)",
-                                    "Context-switch latency and datacenter suitability comparison (2 Marks)"
+                                    "Layered protocol structure and header encapsulation (1.5 Marks)",
+                                    "Stateful handshake and connection lifecycle workflow (2 Marks)",
+                                    "Flow control, congestion management, and cryptographic protection (1.5 Marks)"
                                 ],
-                                "rubric": "5 Marks: 1.5M for architectural diagrams and layers; 1.5M for CPU ring execution; 2M for latency, throughput, and datacenter use case.",
-                                "exp": "Type-1 hypervisors eliminate host OS overhead by interfacing directly with server hardware in CPU root mode.",
-                                "diff": "Medium"
+                                "rubric": "5 Marks: 1.5M for protocol stack; 2M for handshake mechanics; 1.5M for flow control & security."
+                            }
+                        ]
+                    },
+                    {
+                        "keys": ["database", "sql", "dbms", "rdbms", "transaction", "acid", "normalization", "index", "b-tree", "nosql", "sharding"],
+                        "mcq": [
+                            {
+                                "q": f"Regarding transaction management in {t_clean}, how does Write-Ahead Logging (WAL) enforce the Durability property in relational database engines?",
+                                "opts": [
+                                    "By strictly writing and flushing log records to non-volatile disk before modifying dirty pages in the shared memory buffer pool",
+                                    "By executing all queries in duplicate across redundant memory tables",
+                                    "By preventing transactions from writing updates until the system is idle",
+                                    "By periodically saving database backups to tape storage every 24 hours"
+                                ],
+                                "exp": f"Write-Ahead Logging guarantees durability by persisting transaction logs to disk before memory buffers are written, enabling REDO recovery after catastrophic crashes."
                             },
                             {
-                                "unit": "Unit 2: Cloud Object Storage Architectures",
-                                "topic": "Strong Read-After-Write Consistency vs Eventual Consistency",
-                                "q": "Explain the data consistency models in enterprise cloud object storage (e.g., Amazon S3, Google Cloud Storage). Discuss the transition from eventual consistency to immediate strong read-after-write consistency for PUT and DELETE operations.",
-                                "modelAnswer": "Cloud object storage stores data as discrete blobs across geographically distributed storage nodes: (1) Eventual Consistency: Historically, to maximize availability and partition tolerance (AP in CAP theorem), newly written objects or updates (PUT/DELETE) were replicated asynchronously across metadata clusters. A GET request issued immediately after a PUT might hit an un-updated replica and return 404 Not Found or stale data until replication converged. (2) Strong Read-After-Write Consistency: Modern cloud object engines (such as AWS S3 since late 2020) enforce immediate strong consistency for all PUT, LIST, and DELETE requests across all buckets with zero performance penalty. Once an HTTP 200 OK is returned for a PUT of an object, any subsequent GET or LIST across any availability zone is guaranteed to observe the latest written mutation. (3) Mechanism: Achieved via distributed consensus protocols (Raft/Paxos variants) and synchronous metadata commit pipelines that prevent read-stale windows without sacrificing high-throughput object streaming.",
-                                "keyPoints": [
-                                    "Eventual consistency stale read windows and CAP theorem context (1.5 Marks)",
-                                    "Strong Read-After-Write consistency guarantees for PUT, GET, and DELETE (2 Marks)",
-                                    "Synchronous metadata consensus implementation mechanism (1.5 Marks)"
+                                "q": f"In relational schema design for {t_clean}, what mathematical constraint differentiates Boyce-Codd Normal Form (BCNF) from Third Normal Form (3NF)?",
+                                "opts": [
+                                    "BCNF strictly mandates that for every non-trivial functional dependency X -> Y, X must be a superkey without exception",
+                                    "BCNF permits non-superkey determinants as long as the dependent attribute is prime",
+                                    "BCNF requires all non-prime attributes to depend transitively on candidate keys",
+                                    "BCNF only applies to tables containing composite foreign keys"
                                 ],
-                                "rubric": "5 Marks: 1.5M for eventual consistency limitations; 2M for strong read-after-write guarantees; 1.5M for distributed consensus mechanics.",
-                                "exp": "Strong read-after-write guarantees immediate visibility of newly written objects across all read replicas globally.",
-                                "diff": "Hard"
-                            },
-                            {
-                                "unit": "Unit 4: Serverless Computing & Event-Driven Systems",
-                                "topic": "Function-as-a-Service (FaaS) Lifecycle & Cold Starts",
-                                "q": "Describe the operational architecture of Function-as-a-Service (FaaS / Serverless computing). Explain the execution lifecycle of a serverless invocation, analyze the causes of 'cold start' latency, and describe architectural techniques to mitigate cold starts.",
-                                "modelAnswer": "Serverless FaaS (e.g., AWS Lambda, Google Cloud Functions) allows developers to execute event-driven code without provisioning or managing virtual machines: (1) Architecture: Code executes in isolated micro-containers (Firecracker microVMs) spun up dynamically in response to event triggers (HTTP API calls, S3 uploads, queue messages). Compute scales automatically with traffic and scales to zero when idle, billing only for exact execution milliseconds. (2) Invocation Lifecycle & Cold Starts: When a function is invoked after a period of dormancy, a 'cold start' occurs: the provider must allocate a host, initialize the microVM, download the deployment package, start the runtime environment (e.g. JVM, Node.js), and execute top-level initialization code before invoking the handler function. Cold starts introduce 100ms to several seconds of tail latency. (3) Mitigation Techniques: (a) Provisioned Concurrency: Keeps pre-warmed container instances ready to serve immediate traffic. (b) Lean Deployment Bundles: Minimizing dependencies and heavy reflection. (c) Native Image Compilation: Using GraalVM ahead-of-time (AOT) binaries for Java functions to eliminate JVM warmup.",
-                                "keyPoints": [
-                                    "Serverless FaaS event-driven architecture and scale-to-zero economics (1.5 Marks)",
-                                    "Cold start execution pipeline: microVM boot, runtime init, handler invoke (2 Marks)",
-                                    "Mitigation techniques: provisioned concurrency, GraalVM AOT, lightweight bundles (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for FaaS principles; 2M for cold start lifecycle and root cause; 1.5M for mitigation architectures.",
-                                "exp": "Cold start latency occurs during microVM initialization; provisioned concurrency pre-warms runtime containers to eliminate latency.",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 3: Container Orchestration & Microservices",
-                                "topic": "Kubernetes Pod Architecture & Service Networking",
-                                "q": "Explain the architectural components of Kubernetes container orchestration. Differentiate between a Pod, a Deployment, and a Service, and describe how Kube-Proxy and CoreDNS facilitate internal service discovery.",
-                                "modelAnswer": "Kubernetes coordinates containerized applications across clustered compute nodes: (1) Core Abstractions: (a) Pod: The smallest deployable computing unit in Kubernetes, encapsulating one or more tightly coupled containers sharing network namespace (same IP and localhost) and storage volumes. (b) Deployment: A declarative controller that manages the desired state, scaling, rolling zero-downtime updates, and automated rollbacks of Pods via ReplicaSets. (c) Service: An abstraction defining a persistent logical IP (ClusterIP) and DNS name that routes traffic to dynamic, ephemeral Pods selected by label selectors. (2) Service Discovery & Routing: Because individual Pods are transient and have volatile IPs, CoreDNS maps internal service names (e.g., payment-service.default.svc.cluster.local) to the Service ClusterIP. Kube-Proxy runs on each worker node, programming iptables or IPVS rules to load-balance traffic from the ClusterIP across the backing Pod IP endpoints.",
-                                "keyPoints": [
-                                    "Pod vs Deployment vs Service structural hierarchy (2 Marks)",
-                                    "Transient Pod IP problem and Service abstraction (1.5 Marks)",
-                                    "CoreDNS and Kube-Proxy iptables/IPVS internal routing mechanism (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 2M for component definitions; 1.5M for Pod networking problem; 1.5M for CoreDNS and Kube-Proxy service discovery.",
-                                "exp": "Kubernetes Services and CoreDNS provide stable virtual IPs and DNS names over ephemeral, auto-scaling Pods.",
-                                "diff": "Medium"
+                                "exp": f"BCNF removes all functional dependency anomalies by requiring the determinant X to be a superkey, whereas 3NF allows exceptions if Y is a prime attribute."
                             }
                         ],
-                        "CS-310": [
+                        "sub": [
                             {
-                                "unit": "Unit 2: Distributed Storage Systems & HDFS",
-                                "topic": "HDFS Master-Worker Architecture & Fault Tolerance",
-                                "q": "Explain the architecture of the Hadoop Distributed File System (HDFS). Describe the functions of NameNode, DataNodes, EditLog, and FsImage, and explain the automated 3x block replication strategy across rack boundaries.",
-                                "modelAnswer": "HDFS is a distributed, fault-tolerant filesystem designed for streaming large sequential datasets: (1) Architecture: Follows a master-worker topology. (a) NameNode (Master): Manages the filesystem namespace directory tree and block mapping metadata stored in memory (RAM). Modifications are logged sequentially to the EditLog on disk; during periodic checkpoints, the Secondary NameNode merges EditLog into a snapshot image (FsImage). (b) DataNodes (Workers): Store actual file data as physical blocks (default 128MB) on local disks and periodically send block reports and heartbeats to the NameNode. (2) Rack-Aware 3x Replication: When a file is written, HDFS splits it into blocks and replicates each block 3 times across the cluster using a rack-aware policy: (a) Replica 1 is placed on a local node in the local rack. (b) Replica 2 is placed on a different node in a separate remote rack. (c) Replica 3 is placed on another node in the same remote rack. This guarantees resilience against both single node crashes and entire datacenter rack power/switch failures while optimizing cross-rack network bandwidth.",
+                                "q": f"Examine the architectural design and operational mechanics of {t_clean} in {c_name}. Detail the data structures, concurrency controls, and failure recovery protocols employed by high-scale storage systems.",
+                                "modelAnswer": f"In {c_name}, {t_clean} forms the core storage and query processing engine: (1) Storage Engine & Index Structures: Data is organized into fixed-size disk blocks (pages). High-efficiency B+ Tree indexes store record pointers exclusively in doubly linked leaf nodes, maximizing page fan-out and enabling ultra-low depth (3–4 I/O seeks for millions of records) with fast range scanning. (2) Transaction Isolation & Concurrency: Transactions adhere to ACID properties. Isolation is enforced via Multi-Version Concurrency Control (MVCC) or Strict Two-Phase Locking (Strict-2PL), ensuring uncommitted modifications remain locked until commit to eliminate cascading rollbacks. (3) Durability & Crash Recovery: The ARIES recovery framework utilizes Write-Ahead Logging (WAL) with monotonic Log Sequence Numbers (LSNs). During crash recovery, an Analysis phase reconstructs the active transaction table, a REDO phase replays committed logs to restore state, and an UNDO phase rolls back uncommitted dirty updates.",
                                 "keyPoints": [
-                                    "NameNode vs DataNodes responsibilities and memory metadata storage (1.5 Marks)",
-                                    "EditLog and FsImage snapshot checkpointing mechanism (1.5 Marks)",
-                                    "Rack-aware 3x replication placement strategy and fault-tolerance guarantees (2 Marks)"
+                                    "B+ Tree index storage structures and fan-out mechanics (2 Marks)",
+                                    "ACID transaction management and concurrency protocols (1.5 Marks)",
+                                    "Write-Ahead Logging (WAL) and crash recovery phases (1.5 Marks)"
                                 ],
-                                "rubric": "5 Marks: 1.5M for master-worker roles; 1.5M for EditLog/FsImage consistency; 2M for rack-aware replication placement rules.",
-                                "exp": "Rack-aware replication places blocks across separate racks to survive whole-rack switch or power failures.",
-                                "diff": "Medium"
-                            },
-                            {
-                                "unit": "Unit 3: Distributed In-Memory Processing & Apache Spark",
-                                "topic": "Spark RDD Abstraction & Lineage Graph (DAG)",
-                                "q": "Explain the Resilient Distributed Dataset (RDD) abstraction in Apache Spark. How does Spark achieve fault tolerance through Lineage Graphs (DAG) without incurring expensive disk checkpointing, and how do narrow vs wide dependencies impact shuffle stages?",
-                                "modelAnswer": "An RDD is an immutable, lazily evaluated, partition-distributed collection of elements: (1) Fault Tolerance via Lineage: Unlike Hadoop MapReduce which forces intermediate states to local disks, Spark maintains an in-memory RDD Lineage Graph (Directed Acyclic Graph or DAG). Each RDD records the exact sequence of deterministic transformations (map, filter, join) that produced it from source data. If a worker node crashes and loses an RDD partition, Spark does not restore from checkpoint disk; instead, it recomputes ONLY the missing partition on another worker by replaying its lineage upstream. (2) Narrow vs Wide Dependencies: (a) Narrow Dependency: Each partition of the parent RDD is used by at most one partition of the child RDD (e.g., map(), filter()). Transformations execute locally in pipeline without network data exchange. (b) Wide Dependency: Multiple child partitions depend on data across all parent partitions (e.g., groupByKey(), reduceBy(), join()). Wide dependencies mandate an expensive cluster-wide network data repartitioning (Shuffle), dividing the execution DAG into discrete stages.",
-                                "keyPoints": [
-                                    "RDD immutability and lazy evaluation principles (1 Mark)",
-                                    "Lineage Graph DAG deterministic partition recomputation for fault tolerance (2 Marks)",
-                                    "Narrow vs Wide dependencies and Shuffle stage boundary creation (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1M for RDD concept; 2M for Lineage recovery without disk I/O; 2M for narrow vs wide dependency shuffle boundaries.",
-                                "exp": "Spark's DAG tracks transformation lineage, allowing instant recomputation of lost partitions without continuous disk checkpoints.",
-                                "diff": "Hard"
-                            },
-                            {
-                                "unit": "Unit 4: NoSQL Databases & Distributed Consensus",
-                                "topic": "CAP Theorem Trade-offs in Distributed Datastores",
-                                "q": "State and analyze Eric Brewer's CAP Theorem for distributed data systems. Explain why a distributed datastore must choose between Consistency (CP) and Availability (AP) in the presence of an unavoidable network partition (P), with concrete database examples.",
-                                "modelAnswer": "The CAP Theorem states that a distributed data system can simultaneously guarantee at most two of the following three guarantees: (1) Consistency (C): Every read receives the most recent write or an error. (2) Availability (A): Every non-failing node returns a non-error response for every request, without guarantee that it contains the most recent write. (3) Partition Tolerance (P): The system continues to operate despite arbitrary network message losses or delays between cluster nodes. In distributed physical networks, network partitions (P) are unavoidable due to fiber cuts, hardware switches, or latency spikes. Therefore, a distributed system must choose: (a) CP (Consistency over Availability): When partition occurs, nodes reject or block requests if they cannot guarantee strong quorum consistency (e.g., HBase, Google Bigtable, MongoDB primary). (b) AP (Availability over Consistency): Nodes continue accepting reads and writes in all partitions, returning possibly stale data and reconciling conflicts later via eventual consistency (e.g., Apache Cassandra, DynamoDB, CouchDB).",
-                                "keyPoints": [
-                                    "Rigorous definition of Consistency, Availability, and Partition Tolerance (1.5 Marks)",
-                                    "Mathematical impossibility proof during network partition (P) (2 Marks)",
-                                    "Concrete industry examples of CP (HBase/MongoDB) vs AP (Cassandra/DynamoDB) (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for CAP definitions; 2M for mandatory P trade-off analysis; 1.5M for CP vs AP database implementations.",
-                                "exp": "During network partitions, systems must choose between rejecting requests (CP) or serving potentially stale data (AP).",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 1: Big Data Processing Paradigms",
-                                "topic": "MapReduce Execution Pipeline & Shuffle Phase",
-                                "q": "Describe the end-to-end execution pipeline of a MapReduce computational job. Explain the roles of InputSplits, Mappers, Combiners, Partitioners, the Shuffle & Sort phase, and Reducers.",
-                                "modelAnswer": "MapReduce processes massive datasets in parallel across distributed cluster nodes: (1) InputSplit & RecordReader: The input dataset in HDFS is divided into logical chunks (InputSplits); RecordReader parses splits into raw (K1, V1) records. (2) Map Phase: User-defined map() function processes (K1, V1) and emits intermediate key-value pairs (K2, V2) into an in-memory circular buffer. (3) Combiner (Optional Mini-Reducer): Runs locally on mapper nodes to aggregate intermediate values sharing the same key, reducing network traffic. (4) Partitioner & Shuffle-Sort Phase: The partitioner hashes K2 to determine which Reducer will process the key (hash(K2) mod numReducers). The framework transfers intermediate keys over the network to the assigned reducer nodes (Shuffle) and sorts all values by key (Sort), producing (K2, list(V2)). (5) Reduce Phase: The reduce() function iterates over list(V2) for each unique key K2, applies aggregations, and writes final (K3, V3) results to HDFS.",
-                                "keyPoints": [
-                                    "InputSplit and Map transformation of raw records into intermediate pairs (1.5 Marks)",
-                                    "Combiner local aggregation and Partitioner hashing (1.5 Marks)",
-                                    "Shuffle-Sort network transfer and Reducer output to HDFS (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for Input/Map phase; 1.5M for Combiner and Partitioner; 2M for Shuffle-Sort and final Reduce stage.",
-                                "exp": "The Shuffle-Sort phase sorts and routes intermediate keys across worker nodes to consolidate values for reduction.",
-                                "diff": "Medium"
-                            }
-                        ],
-                        "CS-312": [
-                            {
-                                "unit": "Unit 2: Agile Methodologies & Project Monitoring",
-                                "topic": "Agile Scrum Velocity & Sprint Burndown Charts",
-                                "q": "Explain the Agile Scrum project management framework. Describe how Team Velocity is measured, and explain how a Sprint Burndown Chart is constructed and used to identify project scope creep or schedule slippage.",
-                                "modelAnswer": "Agile Scrum is an iterative, incremental framework for delivering high-value software: (1) Core Artifacts & Roles: Product Owner prioritizes User Stories in the Product Backlog; Scrum Master facilitates ceremonies; Developers commit to a Sprint Backlog during 2-4 week Sprints. (2) Team Velocity: Velocity measures the amount of work completed and accepted by the team per sprint, typically quantified in Story Points. Historical average velocity informs capacity planning for subsequent sprint commitments. (3) Sprint Burndown Chart: Plots total estimated remaining effort (Story Points or task hours) on the Y-axis against sprint calendar days on the X-axis: (a) Ideal Burndown: A straight diagonal baseline from total commitment down to zero on the final sprint day. (b) Actual Burndown: Tracks actual remaining effort daily. If the actual line stays consistently above the ideal line, work is proceeding slower than estimated (schedule slippage) or new tasks were injected into the sprint without adjusting capacity (scope creep). If the line dips below, the team is ahead of schedule.",
-                                "keyPoints": [
-                                    "Scrum framework roles, backlog, and sprint lifecycle (1.5 Marks)",
-                                    "Definition and calculation of Team Velocity in Story Points (1.5 Marks)",
-                                    "Sprint Burndown Chart axes, ideal vs actual progress, and scope creep indicators (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for Scrum framework basics; 1.5M for velocity estimation; 2M for Burndown chart analysis and diagnostics.",
-                                "exp": "Burndown charts visually correlate remaining story points against sprint days to detect scope creep and velocity anomalies.",
-                                "diff": "Easy"
-                            },
-                            {
-                                "unit": "Unit 3: Software Cost & Effort Estimation",
-                                "topic": "COCOMO II Algorithmic Cost Modeling",
-                                "q": "Explain Barry Boehm's Constructive Cost Model (COCOMO II) for software effort and schedule estimation. Detail the mathematical formula for Effort in Person-Months (PM), and explain how Scale Factors and Effort Multipliers adjust estimates.",
-                                "modelAnswer": "COCOMO II is an algorithmic metric-based model for estimating software development cost, effort, and duration: (1) Effort Formula: The core post-architecture effort equation is: Effort (Person-Months) = A * (Size)^E * Product(EM_i), where: (a) Size is measured in KSLOC (Thousands of Source Lines of Code) or unadjusted function points. (b) A is a baseline calibration constant (typically 2.94). (2) Scale Factor Exponent (E): E = B + 0.01 * Sum(SF_j), where B = 0.91 and SF represents five scale factors: Precedentedness, Development Flexibility, Architecture/Risk Resolution, Team Cohesion, and Process Maturity. If scale factors sum high, E > 1.0 (diseconomies of scale due to communication overhead). If low, E < 1.0 (economies of scale). (3) Effort Multipliers (EM): 17 cost drivers rated on ordinal scales (e.g. Analyst Capability, Platform Volatility, Required Reliability). Multipliers > 1.0 increase required effort, while high personnel capabilities (< 1.0) reduce effort.",
-                                "keyPoints": [
-                                    "COCOMO II Person-Month effort equation and parameters (1.5 Marks)",
-                                    "Scale Factors (SF) and economies vs diseconomies of scale (1.5 Marks)",
-                                    "Effort Multipliers (EM) cost drivers impact on final person-months (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for mathematical formula; 1.5M for scale factor exponent analysis; 2M for effort multipliers cost drivers.",
-                                "exp": "COCOMO II models software effort as an exponential function of size adjusted by process scale factors and cost drivers.",
-                                "diff": "Medium"
-                            },
-                            {
-                                "unit": "Unit 4: Project Scheduling & Network Analysis",
-                                "topic": "Critical Path Method (CPM) & Float Calculation",
-                                "q": "Describe the Critical Path Method (CPM) in software project scheduling. Explain how Forward Pass and Backward Pass calculate Early Start (ES), Early Finish (EF), Late Start (LS), and Late Finish (LF), and explain how Total Float identifies critical activities.",
-                                "modelAnswer": "The Critical Path Method (CPM) is a deterministic network analysis technique that identifies the longest sequence of dependent activities and the minimum total project duration: (1) Forward Pass: Computes earliest completion times moving from start to end of the Activity-on-Node (AON) network: ES = max(EF of immediate predecessors); EF = ES + Duration. (2) Backward Pass: Computes latest allowable times without delaying project deadline, moving from project completion backward: LF = min(LS of immediate successors); LS = LF - Duration. (3) Float (Slack) Calculation: Total Float = LS - ES = LF - EF. Total float represents the duration an activity can be delayed without delaying the overall project delivery date. Free Float is the duration an activity can be delayed without delaying the Early Start of any successor. (4) Critical Path: The sequence of connected activities with Total Float = 0. Any delay in an activity on the Critical Path directly causes an identical delay to the final project delivery.",
-                                "keyPoints": [
-                                    "Forward Pass algorithm for ES and EF computation (1.5 Marks)",
-                                    "Backward Pass algorithm for LS and LF computation (1.5 Marks)",
-                                    "Total Float and Free Float formulas and Critical Path identification (2 Marks)"
-                                ],
-                                "rubric": "5 Marks: 1.5M for Forward Pass; 1.5M for Backward Pass; 2M for Float calculation and Critical Path zero-slack rule.",
-                                "exp": "The Critical Path consists of zero-float activities; delaying any critical activity delays final project delivery.",
-                                "diff": "Hard"
-                            },
-                            {
-                                "unit": "Unit 4: Software Quality & Risk Management",
-                                "topic": "Software Quality Assurance (SQA) & Risk Mitigation",
-                                "q": "Explain the role of Software Quality Assurance (SQA) in engineering lifecycles. Differentiate between Quality Control (QC) and Quality Assurance (QA), and describe the steps of Risk Identification, Risk Assessment, and Risk Mitigation (RMMM).",
-                                "modelAnswer": "Software Quality Assurance ensures engineered software adheres to institutional quality standards and functional requirements: (1) QA vs QC: (a) Quality Assurance (QA) is process-oriented and proactive; it focuses on preventing defects by improving development processes, coding guidelines, code reviews, and audits. (b) Quality Control (QC) is product-oriented and reactive; it focuses on identifying existing defects in final deliverables through testing, inspection, and verification. (2) Risk Management (RMMM - Risk Mitigation, Monitoring, and Management): (a) Risk Identification: Systematically identifying potential project, technical, and business threats (e.g. staff turnover, scope creep, technology obsolescence). (b) Risk Assessment: Scoring risks along two axes: Probability of occurrence (P) and Impact/Severity (I), yielding Risk Exposure = P * I. (c) Risk Mitigation: Developing contingency plans to reduce probability or impact (e.g. cross-training team members, maintaining redundant cloud backups, modular design).",
-                                "keyPoints": [
-                                    "Process-oriented Quality Assurance (QA) vs Product-oriented Quality Control (QC) (2 Marks)",
-                                    "Risk Identification and Risk Exposure scoring (P * I) (1.5 Marks)",
-                                    "Risk Mitigation, Monitoring, and Management (RMMM) action plans (1.5 Marks)"
-                                ],
-                                "rubric": "5 Marks: 2M for QA vs QC distinction; 1.5M for risk scoring methodology; 1.5M for RMMM implementation.",
-                                "exp": "QA proactively hardens development processes to prevent defects, while QC reactively tests software artifacts.",
-                                "diff": "Medium"
+                                "rubric": "5 Marks: 2M for storage structures; 1.5M for concurrency controls; 1.5M for WAL crash recovery."
                             }
                         ]
                     }
+                ]
 
-                    pool = CURRICULAR_SUBJECTIVE_POOL.get(course_id, CURRICULAR_SUBJECTIVE_POOL.get("CS-308", []))
-                    matched = [q for q in pool if q.get('diff', '').lower() == difficulty.lower()]
-                    for q in pool:
-                        if q not in matched:
-                            matched.append(q)
-                    if not matched:
-                        matched = pool
+                # Match domain or use Universal Semantic Generator
+                matched_domain = None
+                for d in DOMAINS:
+                    if any(k in combined for k in d["keys"]):
+                        matched_domain = d
+                        break
 
+                if matched_domain:
+                    pool = matched_domain["sub"] if is_subjective else matched_domain["mcq"]
                     for idx in range(count):
-                        base = matched[idx % len(matched)]
+                        base = pool[idx % len(pool)]
                         qid = f"ai_gen_{int(time.time()*1000)}_{idx+1}"
-                        generated_questions.append({
-                            "id": qid,
-                            "courseId": course_id,
-                            "courseName": course_name,
-                            "unit": base.get("unit", f"Unit {min(idx+1, 4)}: {topic}"),
-                            "topic": topic if topic and topic != 'Core Architecture & Principles' else base.get("topic", topic),
-                            "type": "Subjective",
-                            "difficulty": difficulty,
-                            "marks": 5.0,
-                            "negativeMarks": 0.0,
-                            "bloomsLevel": blooms,
-                            "questionText": base["q"],
-                            "options": [],
-                            "correctOptionId": None,
-                            "modelAnswer": base.get("modelAnswer", ""),
-                            "keyPoints": base.get("keyPoints", []),
-                            "rubric": base.get("rubric", ""),
-                            "explanation": base.get("exp", "")
-                        })
-                    source_engine = "CredGen Autonomous Curricular Engine (UGC CBCS Subjective Standard)"
-
+                        if is_subjective:
+                            generated_questions.append({
+                                "id": qid,
+                                "courseId": c_id,
+                                "courseName": c_name,
+                                "unit": f"Unit {min(idx+1, 4)}: {t_clean}",
+                                "topic": t_clean,
+                                "type": "Subjective",
+                                "difficulty": difficulty,
+                                "marks": marks_val,
+                                "negativeMarks": neg_m,
+                                "bloomsLevel": blooms,
+                                "questionText": base["q"],
+                                "options": [],
+                                "correctOptionId": None,
+                                "modelAnswer": base["modelAnswer"],
+                                "keyPoints": base["keyPoints"],
+                                "rubric": base["rubric"],
+                                "explanation": "Authoritative university curriculum standard."
+                            })
+                        else:
+                            raw_opts = list(base["opts"])
+                            orig_correct = raw_opts[0]
+                            indices = list(range(len(raw_opts)))
+                            random.shuffle(indices)
+                            opt_list = []
+                            correct_oid = "opt_1"
+                            for pos, o_idx in enumerate(indices):
+                                oid = f"opt_{pos+1}"
+                                opt_list.append({"id": oid, "text": raw_opts[o_idx]})
+                                if raw_opts[o_idx] == orig_correct:
+                                    correct_oid = oid
+                            generated_questions.append({
+                                "id": qid,
+                                "courseId": c_id,
+                                "courseName": c_name,
+                                "unit": f"Unit {min(idx+1, 4)}: {t_clean}",
+                                "topic": t_clean,
+                                "type": "MCQ",
+                                "difficulty": difficulty,
+                                "marks": marks_val,
+                                "negativeMarks": neg_m,
+                                "bloomsLevel": blooms,
+                                "questionText": base["q"],
+                                "options": opt_list,
+                                "correctOptionId": correct_oid,
+                                "explanation": base["exp"]
+                            })
                 else:
-                    CURRICULAR_POOL = {
-                        "CS-302": [
-                            {
-                                "unit": "Unit 2: Relational Model & SQL",
-                                "topic": "ACID Properties & Concurrency Control",
-                                "q": "Which transaction management property prevents concurrency anomalies such as dirty reads and non-repeatable reads by ensuring transactions execute without inter-process memory collisions?",
-                                "opts": ["Isolation", "Atomicity", "Durability", "Consistency"],
-                                "correct": "opt_1",
-                                "exp": "Isolation guarantees that concurrently running transactions remain completely abstracted and decoupled until formal commit.",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 3: Normalization & Schema Refinement",
-                                "topic": "Boyce-Codd Normal Form (BCNF)",
-                                "q": "In Boyce-Codd Normal Form (BCNF), what rigorous mathematical constraint must be satisfied for every non-trivial functional dependency X -> Y?",
-                                "opts": ["X must strictly be a Superkey of the relation", "Y must be a subset of prime attributes", "X and Y must have an identical composite candidate key", "The relation must possess zero multi-valued dependencies"],
-                                "correct": "opt_1",
-                                "exp": "BCNF eliminates all functional dependency anomalies by requiring the determinant X to be a superkey without exception.",
-                                "diff": "Hard", "marks": 5.0
-                            },
-                            {
-                                "unit": "Unit 4: Indexing & Storage Engine",
-                                "topic": "B+ Tree Index Architecture",
-                                "q": "What core structural property differentiates a B+ Tree index from a conventional B Tree index in relational database disk storage engines?",
-                                "opts": ["All leaf nodes are linked in a continuous doubly linked list facilitating high-speed sequential range scans", "Internal root and non-leaf nodes store complete table data rows", "Tree balance is asynchronous, reducing rebalancing overhead during batch inserts", "Search operation complexity is reduced to amortized O(1) time"],
-                                "correct": "opt_1",
-                                "exp": "B+ Trees segregate keys and pointers: leaf nodes contain all record pointers and are doubly linked for sequential and range queries.",
-                                "diff": "Easy", "marks": 2.0
-                            },
-                            {
-                                "unit": "Unit 2: Transaction Concurrency",
-                                "topic": "Two-Phase Locking Protocol (2PL)",
-                                "q": "How does the Strict Two-Phase Locking (Strict-2PL) protocol prevent cascading transaction rollbacks during high-concurrency database workloads?",
-                                "opts": ["It mandates holding all exclusive write locks until the transaction formally commits or aborts", "It releases read locks immediately after data buffer flush", "It converts all shared locks into intent locks prior to transaction start", "It assigns monotonically increasing timestamps to all incoming queries"],
-                                "correct": "opt_1",
-                                "exp": "Strict-2PL holds all exclusive locks until transaction termination, guaranteeing that uncommitted writes are never exposed to concurrent readers.",
-                                "diff": "Hard", "marks": 5.0
-                            }
-                        ],
-                        "CS-304": [
-                            {
-                                "unit": "Unit 3: Dynamic Programming",
-                                "topic": "0/1 Knapsack & Bellman Optimality",
-                                "q": "In the classical 0/1 Knapsack Problem with N items and maximum weight capacity W, what is the exact time complexity achieved via dynamic programming memoization?",
-                                "opts": ["O(N * W)", "O(2^N)", "O(N log W)", "O(N^2 + W^2)"],
-                                "correct": "opt_1",
-                                "exp": "The DP table requires computing states for N items across capacity W, resulting in pseudo-polynomial time complexity O(N * W).",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 4: Graph Theory & Shortest Path",
-                                "topic": "Dijkstra vs Bellman-Ford Algorithmic Bounds",
-                                "q": "Why does Dijkstra's single-source shortest path algorithm fail to produce correct shortest-path distances on graphs with negative edge weights?",
-                                "opts": ["It greedily assumes once a vertex distance is finalized, no shorter path can be discovered later", "It cannot compute vertices with zero in-degree", "It requires all graph cycles to be acyclic directed DAG structures", "Its min-priority queue binary heap does not support negative key decrements"],
-                                "correct": "opt_1",
-                                "exp": "Dijkstra's greedy choice property breaks when negative edge transitions reduce total path weights after a vertex is marked finalized.",
-                                "diff": "Hard", "marks": 5.0
-                            },
-                            {
-                                "unit": "Unit 2: Divide & Conquer Strategies",
-                                "topic": "Master Theorem Asymptotic Bounds",
-                                "q": "For the recurrence relation T(n) = 2T(n/2) + O(n), what is the tight asymptotic upper bound determined by the Master Theorem?",
-                                "opts": ["Theta(n log n)", "Theta(n^2)", "Theta(n)", "Theta(log n)"],
-                                "correct": "opt_1",
-                                "exp": "Here a=2, b=2, and f(n)=O(n). Since log_b(a) = log_2(2) = 1, this falls into Case 2 of Master Theorem, giving Theta(n log n).",
-                                "diff": "Easy", "marks": 2.0
-                            }
-                        ],
-                        "CS-306": [
-                            {
-                                "unit": "Unit 3: Java Concurrency & Multithreading",
-                                "topic": "JVM Memory & Synchronization Monitors",
-                                "q": "In Java multithreaded programming, what guarantee does the 'volatile' keyword provide regarding CPU cache coherence?",
-                                "opts": ["It guarantees visibility across threads by reading/writing directly to main memory rather than thread local registers", "It automatically acquires an intrinsic reentrant mutex lock on the object", "It makes compound atomic check-then-act operations thread-safe", "It prevents garbage collection sweeps on the referenced memory block"],
-                                "correct": "opt_1",
-                                "exp": "The volatile modifier establishes a happens-before relationship, guaranteeing instantaneous visibility of updates across CPU thread caches.",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 2: JVM Architecture & Memory",
-                                "topic": "Garbage Collection Generational Model",
-                                "q": "Which JVM memory space hosts surviving objects that have endured multiple Young Generation Minor GC cycles?",
-                                "opts": ["Tenured (Old) Generation Space", "Eden Memory Pool", "Survivor S0 / S1 Transit Buffer", "Metaspace Class Metadata Area"],
-                                "correct": "opt_1",
-                                "exp": "Objects that survive threshold GC cycles (tenuring threshold) are promoted from the Survivor spaces into the Tenured (Old) Generation space.",
-                                "diff": "Hard", "marks": 5.0
-                            },
-                            {
-                                "unit": "Unit 4: Java Collections & Hash Collisions",
-                                "topic": "HashMap Internal Architecture (Java 8+)",
-                                "q": "How does Java 8+ HashMap optimize collision resolution when the number of bucket collisions exceeds the TREEIFY_THRESHOLD (8)?",
-                                "opts": ["It transforms the bucket linked list into a balanced Red-Black Tree improving search to O(log N)", "It doubles bucket array capacity and invokes dynamic double hashing", "It evicts the oldest entries using Least Recently Used (LRU) policy", "It throws a BucketOverflowException"],
-                                "correct": "opt_1",
-                                "exp": "When bucket linked list size exceeds 8 and overall table capacity >= 64, HashMap converts linked nodes into a self-balancing Red-Black Tree.",
-                                "diff": "Medium", "marks": 4.0
-                            }
-                        ],
-                        "CS-308": [
-                            {
-                                "unit": "Unit 1: Virtualization & Hypervisor Architecture",
-                                "topic": "Bare-Metal Type-1 vs Hosted Type-2 Hypervisors",
-                                "q": "What fundamental architectural distinction differentiates a Type-1 (Bare-Metal) Hypervisor from a Type-2 (Hosted) Hypervisor in cloud datacenters?",
-                                "opts": ["Type-1 runs directly on server hardware without an intermediary host OS layer", "Type-1 runs inside user space on top of a standard Windows or Linux desktop kernel", "Type-2 delivers lower hardware context-switch latency than Type-1", "Type-1 cannot support live migration across physical cluster nodes"],
-                                "correct": "opt_1",
-                                "exp": "Type-1 hypervisors (e.g. VMware ESXi, KVM, Xen) operate directly on physical hardware, maximizing cloud density and eliminating OS kernel overhead.",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 2: Distributed Object Storage & Cloud S3",
-                                "topic": "Strong Read-After-Write Consistency Models",
-                                "q": "In enterprise cloud object storage architectures, what data consistency guarantee is enforced for newly issued HTTP PUT requests?",
-                                "opts": ["Immediate Strong Read-After-Write consistency for newly created objects", "Eventual consistency requiring a 60-second replication buffer across edge nodes", "Causal consistency restricted exclusively to the primary availability zone", "Weak consistency where read replicas update asynchronously on cache invalidation"],
-                                "correct": "opt_1",
-                                "exp": "Modern enterprise cloud object storage systems provide immediate strong read-after-write consistency upon 200 OK PUT completion.",
-                                "diff": "Hard", "marks": 5.0
-                            },
-                            {
-                                "unit": "Unit 4: Serverless Computing & Event Driven Architecture",
-                                "topic": "Function-as-a-Service (FaaS) Execution Lifecycle",
-                                "q": "Which characteristic defines the Function-as-a-Service (Serverless compute) operational paradigm in modern cloud platforms?",
-                                "opts": ["Code executes strictly in response to event triggers with automatic scaling down to zero idle instances", "Underlying VM instances must be pre-provisioned and kept warm permanently", "Storage state is preserved natively across stateless invocation instances", "Pricing is billed strictly on reserved 24/7 cluster CPU hours"],
-                                "correct": "opt_1",
-                                "exp": "Serverless FaaS automatically provisions, executes, and decommissions micro-containers on demand, scaling compute costs to zero when idle.",
-                                "diff": "Easy", "marks": 2.0
-                            }
-                        ],
-                        "CS-310": [
-                            {
-                                "unit": "Unit 2: Hadoop Architecture & Distributed File Systems",
-                                "topic": "HDFS Master-Worker Architecture & Block Replication",
-                                "q": "In the Hadoop Distributed File System (HDFS), how does the NameNode maintain cluster integrity without storing physical file blocks locally?",
-                                "opts": ["It manages file namespace metadata and maps file blocks to active DataNodes in RAM using FsImage and EditLog", "It stores replicated copies of all data blocks in local NVMe storage", "It executes MapReduce shuffle phases directly on edge gateway nodes", "It acts as a peer-to-peer gossip router without centralized state"],
-                                "correct": "opt_1",
-                                "exp": "The NameNode maintains the filesystem directory tree and block locations in RAM, persisting transactions to EditLog and FsImage snapshots.",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 3: Apache Spark In-Memory Computing",
-                                "topic": "Resilient Distributed Datasets (RDD) Lineage Graphs",
-                                "q": "How does Apache Spark achieve fault tolerance across distributed worker nodes without relying on continuous disk checkpointing?",
-                                "opts": ["By maintaining an RDD Lineage Graph (DAG) that allows recomputing lost partitions deterministically", "By synchronously writing all intermediate transformations to secondary NFS storage", "By replicating each RDD partition three times across separate rack DataNodes", "By executing redundant duplicate jobs in parallel on standby clusters"],
-                                "correct": "opt_1",
-                                "exp": "Spark's RDD Lineage tracks the exact sequence of transformations (DAG), enabling instantaneous deterministic recomputation of lost partitions.",
-                                "diff": "Hard", "marks": 5.0
-                            },
-                            {
-                                "unit": "Unit 4: NoSQL Architectures & Distributed Hash Tables",
-                                "topic": "CAP Theorem Trade-offs in Distributed Databases",
-                                "q": "According to Eric Brewer's CAP Theorem, what fundamental trade-off must any distributed data store make during an unavoidable network partition (P)?",
-                                "opts": ["It must choose between Consistency (C) and Availability (A)", "It must abandon Partition Tolerance to preserve high throughput", "It can simultaneously guarantee Consistency, Availability, and Partition Tolerance", "It must downgrade database schema ACID compliance to single-node transactions"],
-                                "correct": "opt_1",
-                                "exp": "During a network partition (P), a distributed system must mathematically choose between responding with possibly stale data (Availability) or returning errors to guarantee consistency.",
-                                "diff": "Easy", "marks": 2.0
-                            }
-                        ],
-                        "CS-312": [
-                            {
-                                "unit": "Unit 2: Agile Methodologies & Scrum Framework",
-                                "topic": "Sprint Planning & Burndown Velocity",
-                                "q": "In the Agile Scrum methodology, which metric visually demonstrates the remaining estimated work against sprint timeline progression?",
-                                "opts": ["Sprint Burndown Chart", "Gantt Milestone Schedule", "PERT Network Diagram", "COCOMO Cost Curve"],
-                                "correct": "opt_1",
-                                "exp": "The Sprint Burndown Chart tracks outstanding story points or task hours day-by-day to ensure on-time sprint velocity and completion.",
-                                "diff": "Easy", "marks": 2.0
-                            },
-                            {
-                                "unit": "Unit 3: Software Cost Estimation Models",
-                                "topic": "COCOMO II Algorithmic Cost Modeling",
-                                "q": "In Barry Boehm's COCOMO estimation model, what is the primary dependent variable computed from Source Lines of Code (SLOC) and scale factors?",
-                                "opts": ["Effort in Person-Months (PM)", "Database transaction throughput per second", "Hardware infrastructure cooling capacity", "Software defect density per thousand lines"],
-                                "correct": "opt_1",
-                                "exp": "COCOMO calculates development Effort (Person-Months) as a function of software size (KSLOC) multiplied by effort multipliers and exponent scale factors.",
-                                "diff": "Medium", "marks": 4.0
-                            },
-                            {
-                                "unit": "Unit 4: Project Scheduling & Critical Path",
-                                "topic": "Critical Path Method (CPM) & Float Calculation",
-                                "q": "In software project schedule network diagrams, what is the total float (slack) associated with activities positioned directly on the Critical Path?",
-                                "opts": ["Zero Float (Slack = 0)", "Negative Float (-10 Days)", "Equal to total project variance", "Dynamically calculated based on buffer margin"],
-                                "correct": "opt_1",
-                                "exp": "Activities on the Critical Path have zero slack; any delay in a critical path task directly postpones the final project delivery completion date.",
-                                "diff": "Hard", "marks": 5.0
-                            }
-                        ]
-                    }
-
-                    pool = CURRICULAR_POOL.get(course_id, CURRICULAR_POOL["CS-308"])
-                    matched = [q for q in pool if q.get('diff', '').lower() == difficulty.lower()]
-                    for q in pool:
-                        if q not in matched:
-                            matched.append(q)
-                    if not matched:
-                        matched = pool
-
+                    # UNIVERSAL ADAPTIVE GENERATOR FOR ANY ARBITRARY TOPIC
                     for idx in range(count):
-                        base = matched[idx % len(matched)]
                         qid = f"ai_gen_{int(time.time()*1000)}_{idx+1}"
-                        raw_opts = list(base["opts"])
-                        orig_correct_text = raw_opts[0]
-                        indices = list(range(len(raw_opts)))
-                        random.shuffle(indices)
-                        opt_list = []
-                        correct_oid = "opt_1"
-                        for pos, orig_idx in enumerate(indices):
-                            oid = f"opt_{pos+1}"
-                            opt_list.append({"id": oid, "text": raw_opts[orig_idx]})
-                            if raw_opts[orig_idx] == orig_correct_text:
-                                correct_oid = oid
+                        focus_angle = idx % 4
+                        if is_subjective:
+                            if focus_angle == 0:
+                                q_text = f"Explain the fundamental architectural principles, operational mechanism, and lifecycle of {t_clean} in {c_name}. Illustrate with an appropriate workflow or block diagram description."
+                                m_ans = f"In {c_name}, {t_clean} provides a structured paradigm for managing complexity, data transformation, and system coordination: (1) Core Mechanism: {t_clean} breaks down execution states into discrete, deterministically managed stages. (2) Architectural Components: The operational model consists of input parsing, state validation, operational transformation, and output synthesis. (3) Performance & Optimization: Under production constraints, {t_clean} minimizes overhead through resource reuse, caching, and algorithmic efficiency. (4) Industrial Applications: In real-world engineering environments, this architecture ensures high availability and predictable throughput."
+                                kp = [
+                                    "Theoretical definition and operational working mechanism (2 Marks)",
+                                    "Architectural component analysis and workflow interaction (2 Marks)",
+                                    "Real-world application, failure mitigation, and performance trade-offs (1 Mark)"
+                                ]
+                            elif focus_angle == 1:
+                                q_text = f"Analyze the performance bottlenecks, failure modes, and optimization strategies associated with {t_clean} in {c_name}. How can modern engineering systems guarantee high reliability when scaling this paradigm?"
+                                m_ans = f"Scaling {t_clean} in {c_name} requires careful identification of performance boundaries: (1) Primary Bottlenecks: Resource contention (CPU time slices, memory buffer saturation, or network/disk I/O serialization) represents the chief limitation. (2) Failure Modes & Edge Cases: Unexpected input divergence, unhandled exceptions, and asynchronous race conditions can lead to inconsistent state transitions. (3) Mitigation Strategies: Engineering best practices implement non-blocking concurrent pipelines, defensive boundary validation, and exponential backoff retry policies. (4) Monitoring & Reliability: Continuous health telemetry and automated failover mechanisms guarantee sustained uptime."
+                                kp = [
+                                    "Identification of scalability bottlenecks and resource constraints (1.5 Marks)",
+                                    "Detailed analysis of failure modes and edge-case exceptions (2 Marks)",
+                                    "Architectural mitigation, optimization, and reliability guarantees (1.5 Marks)"
+                                ]
+                            elif focus_angle == 2:
+                                q_text = f"Compare and contrast the implementation trade-offs of {t_clean} against conventional alternative approaches in {c_name}. Under what specific operational constraints is {t_clean} the optimal design choice?"
+                                m_ans = f"A rigorous comparative evaluation of {t_clean} in {c_name} highlights significant engineering trade-offs: (1) Comparative Analysis: Traditional paradigms prioritize simplicity at the cost of flexibility, whereas {t_clean} introduces modular abstraction layers enabling elastic scaling and maintainability. (2) Trade-Off Dimensions: Time complexity, memory footprint, configuration overhead, and engineering maintenance must be balanced. (3) Optimal Use Cases: {t_clean} is specifically optimal in high-concurrency environments and distributed architectures requiring strict integrity guarantees."
+                                kp = [
+                                    "Formal comparative evaluation against traditional alternatives (2 Marks)",
+                                    "Multi-dimensional trade-off matrix (latency, space, complexity) (1.5 Marks)",
+                                    "Identification of optimal operational constraints vs anti-patterns (1.5 Marks)"
+                                ]
+                            else:
+                                q_text = f"Discuss the industry best practices, security considerations, and quality assurance standards required when deploying {t_clean} in enterprise-grade {c_name} implementations."
+                                m_ans = f"Enterprise deployment of {t_clean} mandates adherence to comprehensive quality assurance and security frameworks: (1) Quality Engineering: Rigorous unit test coverage, automated integration suites, and regression benchmarks ensure code correctness across edge boundaries. (2) Security Hardening: Adopting the Principle of Least Privilege, cryptographic integrity validation, and input sanitization eliminates vulnerability vectors. (3) Maintenance & Governance: Comprehensive documentation and API versioning protocols facilitate seamless long-term maintainability."
+                                kp = [
+                                    "Testing methodologies and quality assurance frameworks (2 Marks)",
+                                    "Security hardening and vulnerability mitigation practices (1.5 Marks)",
+                                    "Long-term maintainability, API governance, and compliance standards (1.5 Marks)"
+                                ]
+                            generated_questions.append({
+                                "id": qid,
+                                "courseId": c_id,
+                                "courseName": c_name,
+                                "unit": f"Unit {min(idx+1, 4)}: {t_clean}",
+                                "topic": t_clean,
+                                "type": "Subjective",
+                                "difficulty": difficulty,
+                                "marks": marks_val,
+                                "negativeMarks": neg_m,
+                                "bloomsLevel": blooms,
+                                "questionText": q_text,
+                                "options": [],
+                                "correctOptionId": None,
+                                "modelAnswer": m_ans,
+                                "keyPoints": kp,
+                                "rubric": "5 Marks: 2M for core theoretical depth; 2M for architectural breakdown; 1M for industry practices.",
+                                "explanation": f"Authoritative academic analysis on {t_clean} ({c_name})."
+                            })
+                        else:
+                            # MCQ for arbitrary topic
+                            if focus_angle == 0:
+                                q_text = f"In the technical study of {t_clean} ({c_name}), which of the following statements most accurately defines its primary architectural function?"
+                                correct_text = "To establish a structured, deterministic framework that optimizes execution flow and guarantees data integrity under operational constraints"
+                                distractors = [
+                                    "To bypass system abstraction boundaries and execute unverified low-level instructions directly on raw storage",
+                                    "To eliminate all memory allocations by restricting data representation strictly to static 8-bit integers",
+                                    "To randomize instruction execution order to eliminate all predictable deterministic patterns"
+                                ]
+                                exp_text = f"In {c_name}, {t_clean} is specifically engineered to provide structured, deterministic execution guarantees while preserving system abstraction boundaries."
+                            elif focus_angle == 1:
+                                q_text = f"When evaluating performance characteristics of {t_clean}, which operational condition represents the most severe bottleneck or constraint?"
+                                correct_text = "Resource contention and synchronization latency during high-concurrency throughput or intensive memory access"
+                                distractors = [
+                                    "Excessive compiler optimization leading to automated source code deletion",
+                                    "Deterministic execution speeds exceeding the physical clock speed of the underlying motherboard",
+                                    "Lack of support for floating-point arithmetic across modern 64-bit microprocessors"
+                                ]
+                                exp_text = f"High concurrency and shared-state synchronization typically introduce latency and resource serialization constraints in {t_clean} systems."
+                            elif focus_angle == 2:
+                                q_text = f"What is the recommended industry best practice to prevent state anomalies and race conditions when implementing {t_clean}?"
+                                correct_text = "Enforcing atomic state mutations, defensive boundary validation, and appropriate concurrency synchronization primitives"
+                                distractors = [
+                                    "Disabling all error logging and allowing unhandled exceptions to terminate silently",
+                                    "Granting global read and write permissions to all unauthenticated network endpoints",
+                                    "Executing all transactions exclusively on a single hardware thread without backups or timeouts"
+                                ]
+                                exp_text = f"Defensive boundary validation and atomic synchronization ensure that {t_clean} implementations remain immune to data corruption and race conditions."
+                            else:
+                                q_text = f"Which computational complexity property is most characteristic of optimal implementations of {t_clean} in {c_name}?"
+                                correct_text = "Achieving amortized polynomial or logarithmic scaling efficiency relative to the size of the input problem"
+                                distractors = [
+                                    "Requiring factorial O(N!) computational steps regardless of the simplicity of the underlying workload",
+                                    "Operating with non-terminating infinite recursion across all valid edge cases",
+                                    "Consuming memory linearly proportional to the square of total network bandwidth"
+                                ]
+                                exp_text = f"Efficient implementations of {t_clean} prioritize scalable algorithmic bounds (such as O(log N) or O(N log N)) to prevent exponential degradation."
 
-                        marks = 2.0 if difficulty == 'Easy' else 4.0 if difficulty == 'Medium' else 5.0
-                        generated_questions.append({
-                            "id": qid,
-                            "courseId": course_id,
-                            "courseName": course_name,
-                            "unit": base.get("unit", f"Unit {min(idx+1, 4)}: {topic}"),
-                            "topic": topic if topic and topic != 'Core Architecture & Principles' else base.get("topic", topic),
-                            "type": "MCQ",
-                            "difficulty": difficulty,
-                            "marks": marks,
-                            "negativeMarks": round(marks * 0.25, 2),
-                            "bloomsLevel": blooms,
-                            "questionText": base["q"],
-                            "options": opt_list,
-                            "correctOptionId": correct_oid,
-                            "explanation": base["exp"]
-                        })
-                    source_engine = "CredGen Autonomous Curricular Engine (Institutional CBCS Standards)"
+                            raw_opts = [correct_text] + distractors
+                            indices = list(range(4))
+                            random.shuffle(indices)
+                            opt_list = []
+                            correct_oid = "opt_1"
+                            for pos, o_idx in enumerate(indices):
+                                oid = f"opt_{pos+1}"
+                                opt_list.append({"id": oid, "text": raw_opts[o_idx]})
+                                if raw_opts[o_idx] == correct_text:
+                                    correct_oid = oid
+
+                            generated_questions.append({
+                                "id": qid,
+                                "courseId": c_id,
+                                "courseName": c_name,
+                                "unit": f"Unit {min(idx+1, 4)}: {t_clean}",
+                                "topic": t_clean,
+                                "type": "MCQ",
+                                "difficulty": difficulty,
+                                "marks": marks_val,
+                                "negativeMarks": neg_m,
+                                "bloomsLevel": blooms,
+                                "questionText": q_text,
+                                "options": opt_list,
+                                "correctOptionId": correct_oid,
+                                "explanation": exp_text
+                            })
 
             self.send_json({
                 "success": True,
