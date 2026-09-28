@@ -42,7 +42,38 @@ load_env_file()
 from datetime import datetime, timedelta
 
 DEFAULT_PORTS = [5173, 5000]
-DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credgen.db")
+
+def resolve_database_path():
+    # 1. Explicit DB_PATH or DB_FILE environment variable
+    env_db = os.environ.get("DB_PATH") or os.environ.get("DB_FILE")
+    if env_db:
+        os.makedirs(os.path.dirname(os.path.abspath(env_db)), exist_ok=True)
+        return env_db
+
+    # 2. Railway / Cloud Persistent Volume Mount
+    # Checks RAILWAY_VOLUME_MOUNT_PATH, DATA_DIR, or if /data directory exists and is writable
+    vol_dir = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.environ.get("DATA_DIR")
+    if not vol_dir and os.path.isdir("/data") and os.access("/data", os.W_OK):
+        vol_dir = "/data"
+
+    if vol_dir:
+        os.makedirs(vol_dir, exist_ok=True)
+        persistent_file = os.path.join(vol_dir, "credgen.db")
+        # On first volume mount, copy the bundled repository seed database if persistent file does not exist
+        bundled_seed = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credgen.db")
+        if not os.path.exists(persistent_file) and os.path.exists(bundled_seed):
+            try:
+                import shutil
+                shutil.copy2(bundled_seed, persistent_file)
+                print(f"[DB-PERSISTENCE] Initialized persistent volume database: {persistent_file}")
+            except Exception as e:
+                print(f"[DB-PERSISTENCE] Warning copying initial seed to volume: {e}")
+        return persistent_file
+
+    # 3. Default workspace file for local development
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "credgen.db")
+
+DB_FILE = resolve_database_path()
 
 # UGC Choice Based Credit System (CBCS) 10-Point Conversion Scale
 CBCS_GRADE_RULES = [
@@ -517,13 +548,14 @@ def init_database():
     """)
 
         # MASTER ACCOUNT SPECIFICATION: Keep ONLY Vivek as the Active Administrator
-    # Purge any legacy demo accounts
+    # Purge only obsolete legacy demo accounts
     cur.execute("DELETE FROM users WHERE id IN ('usr_admin_shashank', 'usr_teacher_1', 'usr_student_rahul')")
 
     vivek_pwd_hash = hash_password('Vivek@Admin2026#')
-    cur.execute("SELECT id FROM users WHERE id = 'usr_admin_vivek' OR LOWER(email) = 'vr5655881@gmail.com'")
+    cur.execute("SELECT id, password FROM users WHERE id = 'usr_admin_vivek' OR LOWER(email) = 'vr5655881@gmail.com'")
     vivek_row = cur.fetchone()
     if vivek_row:
+        # Keep Vivek's admin profile active, but NEVER overwrite an existing custom password!
         cur.execute("""
         UPDATE users SET
             id = 'usr_admin_vivek',
@@ -540,21 +572,20 @@ def init_database():
             phone_verified = 1
         WHERE id = ?
         """, (vivek_row['id'],))
-        # Ensure password hash is PBKDF2
-        cur.execute("SELECT password FROM users WHERE id = 'usr_admin_vivek'")
-        p_row = cur.fetchone()
-        if p_row and not p_row['password'].startswith("pbkdf2:sha256:"):
+        # Only set initial password if the user record has NO password at all
+        if not vivek_row['password']:
             cur.execute("UPDATE users SET password = ? WHERE id = 'usr_admin_vivek'", (vivek_pwd_hash,))
     else:
+        # First-time initialization only
         cur.execute("""
         INSERT INTO users (id, name, email, phone, password, role, department, institution, designation, roll_no, faculty_id, avatar, status, email_verified, phone_verified)
         VALUES ('usr_admin_vivek', 'Vivek', 'vr5655881@gmail.com', '7281041275', ?, 'ADMIN', 'Examination Control Board & CSE', 'Maharishi Markandeshwar (Deemed to be University), Mullana', 'Chief Administrator & Project Lead', '11242634', NULL, '', 'ACTIVE', 1, 1)
         """, (vivek_pwd_hash,))
 
-    # Ensure no demo users remain
-    cur.execute("DELETE FROM users WHERE id NOT LIKE 'usr_%' OR id IN ('usr_admin_shashank', 'usr_teacher_1', 'usr_student_rahul')")
+    # Keep all registered student, faculty, and administrative accounts safe
+    cur.execute("DELETE FROM users WHERE id IN ('usr_admin_shashank', 'usr_teacher_1', 'usr_student_rahul')")
     conn.commit()
-    print("[DB-INIT] Master user database synchronized. Sole Administrator: Vivek (vr5655881@gmail.com).")
+    print(f"[DB-INIT] Master user database synchronized ({DB_FILE}). Administrator: Vivek (vr5655881@gmail.com).")
 
     cur.execute("SELECT COUNT(*) as count FROM questions")
     if cur.fetchone()["count"] == 0:

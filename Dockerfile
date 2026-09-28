@@ -4,6 +4,9 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
+# Create persistent data directory for Railway Volume
+RUN mkdir -p /data
+
 # Copy all project files
 COPY . /app
 
